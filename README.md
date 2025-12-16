@@ -183,9 +183,9 @@ Struttura completa:
 │    ├── medio
 │    └── alto
 └── uccidere
-├── basso
-├── medio
-└── alto
+       ├── basso
+       ├── medio
+       └── alto
 
 ```
 
@@ -199,8 +199,8 @@ Esempio:
 ```
 
 /suoni/ferire/medio/
-├── ahio.wav
-└── mannaggia.wav
+                ├── ahio.wav
+                └── mannaggia.wav
 
 ```
 
@@ -301,7 +301,7 @@ Apri una **Issue** o **Discussion** per:
 
 ## 📜 Licenza
 
-Da definire.
+MIT
 
 ---
 
