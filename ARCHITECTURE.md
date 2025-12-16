@@ -85,7 +85,7 @@ Contiene:
 ### TurnManager
 - seleziona la squadra attiva
 - seleziona lo scarabeo controllabile
-- gestisce il timer dei **20 secondi**
+- gestisce il timer dei **10 secondi**
 - intercetta:
   - fine tempo
   - attacco effettuato
