@@ -53,27 +53,27 @@ Struttura obbligatoria:
 
 ```
 
-/suoni
-├── ferire
-│    ├── basso
-│    ├── medio
-│    └── alto
-├── frustrazione
-└── uccidere
-     ├── basso
-     ├── medio
-     └── alto
+/sounds
+  ├── byte
+  │    ├── low
+  │    ├── med
+  │    └── hig
+  ├── frust
+  └── kill
+       ├── low
+       ├── med
+       └── hig
 
 ```
 
 ### Significato delle cartelle
-- **ferire**  
+- **byte: ferire**  
   Suoni riprodotti quando uno scarabeo subisce danno ma sopravvive
-- **uccidere**  
+- **kill: uccidere**  
   Suoni riprodotti quando uno scarabeo viene eliminato
-- **frustrazione**  
+- **frust: frustrazione**  
   Suoni riprodotti quando uno scarabeo non esegue una azione entro il tempo previsto (es. 20 sec) o il suo colpo non va a segno 
-- **basso / medio / alto**  
+- **low / med / hig**  
   Intensità del dolore subito
 
 ---
@@ -89,10 +89,10 @@ Struttura obbligatoria:
 
 ```
 
-/suoni/ferire/medio/
-               ├── ahio.wav
-               ├── mannaggia.wav
-               └── urlo2.wav
+/sounds/byte/med/
+              ├── ahio.wav
+              ├── mannaggia.wav
+              └── urlo2.wav
 
 ```
 
