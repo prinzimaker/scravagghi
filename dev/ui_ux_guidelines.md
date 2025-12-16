@@ -50,7 +50,7 @@ La UI deve permettere al giocatore di:
 ## ⏱️ Timer del Turno
 
 - Timer visibile in modo chiaro
-- Mostra i **20 secondi** rimanenti
+- Mostra i **10 secondi** rimanenti
 - Deve:
   - essere sempre visibile
   - attirare l’attenzione negli ultimi secondi
