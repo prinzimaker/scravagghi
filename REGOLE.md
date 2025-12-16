@@ -74,7 +74,8 @@ Se il timer di 20 secondi scade **senza attacco**, il turno termina automaticame
 
 ## Esempi
 
-Uno scarafaggio scava fin sotto un altro scarafaggio, posiziona e accende la dinamite (entro 20 sec) e poi scappa mentre la miccia sta andando (anche se è fuori dai 20 sec, in realtà poi c'è un trmpoe in cui l'attaco termina. Anche lanciare una palla di cacca deve essere fatto entro i 20sec, ma se fatto al 20mo sec da quel momento scatta il tempo di azione. E' il tempo rappresentato, in questo caso, tra il momento del lancio e il momento in cui, dopo avere volato fino dall'altro lato dello schermo, magari rimbalzando più volte tra le rocce, non finisce per ferire un altro scarafaggio (anche della stessa squadra) o terminare senza colpire nessuno.   
+Uno scarafaggio scava fin sotto un altro scarafaggio, posiziona e accende la dinamite (entro 20 sec) e poi scappa mentre la miccia sta andando (anche se è fuori dai 20 sec, in realtà poi c'è un tempo in cui l'attacco ha una azione "terza" e poi termina. 
+Es. lanciare una palla di cacca è un attacco e deve essere fatto entro i 20sec. Anche ma al 20mo sec. Quindi scatta "il tempo di azione", che é il tempo rappresentato, in questo caso, tra il momento del lancio e il momento in cui, dopo avere volato fino dall'altro lato dello schermo e magari rimbalzanto più volte tra le rocce, finisce per ferire un altro scarafaggio (anche della stessa squadra) oppure termina la corsa senza colpire nessuno.   
 
 ---
 
