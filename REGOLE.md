@@ -72,6 +72,10 @@ Ogni turno segue questa struttura:
 
 Se il timer di 20 secondi scade **senza attacco**, il turno termina automaticamente.
 
+## Esempi
+
+Uno scarafaggio scava fin sotto un altro scarafaggio, posiziona e accende la dinamite (entro 20 sec) e poi scappa mentre la miccia sta andando (anche se è fuori dai 20 sec, in realtà poi c'è un trmpoe in cui l'attaco termina. Anche lanciare una palla di cacca deve essere fatto entro i 20sec, ma se fatto al 20mo sec da quel momento scatta il tempo di azione. E' il tempo rappresentato, in questo caso, tra il momento del lancio e il momento in cui, dopo avere volato fino dall'altro lato dello schermo, magari rimbalzando più volte tra le rocce, non finisce per ferire un altro scarafaggio (anche della stessa squadra) o terminare senza colpire nessuno.   
+
 ---
 
 ### 🔁 Alternanza dei Turni
