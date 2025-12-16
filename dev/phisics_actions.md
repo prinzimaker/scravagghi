@@ -25,7 +25,7 @@ Questo documento definisce **le regole di fisica e azione** di *Scravagghi* ispi
 > Questo è il cuore “Worms-like”: muovi → scegli → attacchi → risolvi → turno passa. :contentReference[oaicite:0]{index=0}
 
 ### 1.2 Tempo di turno
-- Ogni turno ha un **tempo massimo** (in Scravagghi: 20 secondi).
+- Ogni turno ha un **tempo massimo** (in Scravagghi: 10 secondi).
 - Scaduto il tempo:
   - se non hai attaccato, il turno termina comunque.
 
