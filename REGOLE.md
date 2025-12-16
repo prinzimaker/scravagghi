@@ -37,8 +37,8 @@ Questo permette al giocatore di:
 
 - All’inizio della partita:
   - il sistema sceglie **randomicamente** il primo giocatore
-- Gli scarabei vengono posizionati nelle rispettive aree iniziali della mappa
-- Le trappole ambientali e gli enhancing sono già presenti o generati
+- Gli scarabei vengono posizionati in aree iniziali random della mappa
+- Le trappole ambientali e gli enhancing sono già presenti o vengono generati in casi particolari, ad esempio quando la morte di uno scarafaggio è cruenta e immediata, il sistema può decidere random di sostituire il cadavere dello scarabeo con un enhancement (es. dinamite, fucile a pompa, palla di cemento, ecc.).
 
 ---
 
@@ -47,7 +47,7 @@ Questo permette al giocatore di:
 Ogni turno segue questa struttura:
 
 1. **Inizio turno**
-   - viene selezionato uno scarabeo della squadra attiva
+   - viene selezionato uno scarabeo di una squadra che diventa attiva
    - parte un timer di **20 secondi**
 
 2. **Fase di strategia (max 20 secondi)**  
@@ -101,5 +101,4 @@ Non esistono pareggi:
 - Ogni movimento è una scelta
 - Ogni attacco è definitivo
 
-In **Scravagghi** il turno non serve a pianificare tutto.  
-Serve a **sopravvivere abbastanza a lungo da colpire**.
+In **Scravagghi** il turno serve solo a **sopravvivere abbastanza a lungo da colpire**.
