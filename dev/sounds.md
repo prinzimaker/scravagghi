@@ -69,7 +69,7 @@ Struttura obbligatoria:
 - **kill: uccidere**  
   Suoni riprodotti quando uno scarabeo viene eliminato
 - **frust: frustrazione**  
-  Suoni riprodotti quando uno scarabeo non esegue una azione entro il tempo previsto (es. 20 sec) o il suo colpo non va a segno 
+  Suoni riprodotti quando uno scarabeo non esegue una azione entro il tempo previsto (es. 10 sec) o il suo colpo non va a segno 
 - **low / med / hig**  
   Intensità del dolore subito
 
@@ -195,7 +195,7 @@ Il Game Core genera eventi logici:
 - `onDeath(intensity)`
 - `onFall()`
 - `onTrapTriggered()`
-- `onTimeout()`   -> Se lo scarafaggio non è riuscito a tirare entro i 20 sec, che genererà un suono di frustrazione
+- `onTimeout()`   -> Se lo scarafaggio non è riuscito a tirare entro i 10 sec, che genererà un suono di frustrazione
 - `onOffTarget()` -> Se il tiro manca completamente il bersaglio, che genererà un suono di frustrazione
   
 
