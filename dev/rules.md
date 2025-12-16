@@ -149,8 +149,10 @@ Uno scarabeo viene eliminato immediatamente se:
 
 ### 7.3 Ribaltamento
 - Uno scarabeo capovolto:
-  - può tentare di raddrizzarsi
+  - può continuare a lanciare
   - è estremamente vulnerabile
+- Se subisce un colpo non mortale
+  - potrebbe raddrizzarsi (esempio una palla di cacca che lo colpisce di striscio, o una esplosione nelle vicinanze che sconquassa il pavimento su cui è appoggiato, ecc. -> vedi fisica del gioco)
 - Se non si raddrizza entro un tempo limite:
   - viene divorato dalle formiche
   - viene eliminato
