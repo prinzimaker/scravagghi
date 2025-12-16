@@ -49,7 +49,7 @@ Tutte le meccaniche descritte qui sono considerate **vincolanti** per lo svilupp
 ## 4. Struttura del Turno
 
 ### 4.1 Durata del Turno
-- Ogni turno dura **massimo 20 secondi**
+- Ogni turno dura **massimo 10 secondi**
 - Il timer parte all’attivazione dello scarabeo
 
 ---
@@ -86,7 +86,7 @@ Esempi di attacco:
 ---
 
 ### 4.4 Fine Turno Automatica
-- Se i **20 secondi scadono** senza attacco:
+- Se i **10 secondi scadono** senza attacco:
   - il turno termina automaticamente
   - lo scarabeo resta nella posizione attuale
 
