@@ -60,9 +60,6 @@ Struttura obbligatoria:
    │    └── hig
    ├── frust
    └── kill
-        ├── low
-        ├── med
-        └── hig
 
 ```
 
