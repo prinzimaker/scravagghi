@@ -197,15 +197,13 @@ L’Audio System:
 ### Struttura cartelle
 ```
 
-/suoni
-├── ferire
-│    ├── basso
-│    ├── medio
-│    └── alto
-└── uccidere
-     ├── basso
-     ├── medio
-     └── alto
+/sounds
+   ├── byte
+   │    ├── low
+   │    ├── medium
+   │    └── high 
+   ├── frustrating
+   └── kill
 
 ```
 
