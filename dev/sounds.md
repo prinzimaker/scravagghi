@@ -72,7 +72,7 @@ Struttura obbligatoria:
 - **uccidere**  
   Suoni riprodotti quando uno scarabeo viene eliminato
 - **frustrazione**  
-  Suoni riprodotti quando uno scarabeo va fuori tempo (>20 sec) o il suo colpo non va a segno 
+  Suoni riprodotti quando uno scarabeo non esegue una azione entro il tempo previsto (es. 20 sec) o il suo colpo non va a segno 
 - **basso / medio / alto**  
   Intensità del dolore subito
 
