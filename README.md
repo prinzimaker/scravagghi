@@ -1,3 +1,5 @@
+![SCRAVAGGHI](https://github.com/prinzimaker/scravagghi/blob/main/img/scravagghi.png)
+
 # 🪲 Scravagghi
 
 **Scravagghi** è un *artillery game* a turni ambientato in un giardino ostile e vivo, dove scarabei stercorari combattono una guerra brutale usando armi improvvisate, terreno deformabile, trappole casuali e un sistema audio fortemente personalizzabile.
