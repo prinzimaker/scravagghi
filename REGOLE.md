@@ -48,9 +48,9 @@ Ogni turno segue questa struttura:
 
 1. **Inizio turno**
    - viene selezionato uno scarabeo di una squadra che diventa attiva
-   - parte un timer di **20 secondi**
+   - parte un timer di **10 secondi**
 
-2. **Fase di strategia (max 20 secondi)**  
+2. **Fase di strategia (max 10 secondi)**  
    Durante questo tempo il giocatore può:
    - muoversi
    - saltare
@@ -70,12 +70,12 @@ Ogni turno segue questa struttura:
    - il controllo passa alla **squadra avversaria**
    - se uno scarabeo muore, viene rimosso dal gioco
 
-Se il timer di 20 secondi scade **senza attacco**, il turno termina automaticamente.
+Se il timer di 10 secondi scade **senza attacco**, il turno termina automaticamente.
 
 ## Esempi
 
-Uno scarafaggio scava fin sotto un altro scarafaggio, posiziona e accende la dinamite (entro 20 sec) e poi scappa mentre la miccia sta andando (anche se è fuori dai 20 sec, in realtà poi c'è un tempo in cui l'attacco ha una azione "terza" e poi termina. 
-Es. lanciare una palla di cacca è un attacco e deve essere fatto entro i 20sec. Anche ma al 20mo sec. Quindi scatta "il tempo di azione", che é il tempo rappresentato, in questo caso, tra il momento del lancio e il momento in cui, dopo avere volato fino dall'altro lato dello schermo e magari rimbalzanto più volte tra le rocce, finisce per ferire un altro scarafaggio (anche della stessa squadra) oppure termina la corsa senza colpire nessuno.   
+Uno scarafaggio scava fin sotto un altro scarafaggio, posiziona e accende la dinamite (entro 10 sec) e poi scappa mentre la miccia sta andando (anche se è fuori dai 10 sec, in realtà poi c'è un tempo in cui l'attacco ha una azione "terza" e poi termina. 
+Es. lanciare una palla di cacca è un attacco e deve essere fatto entro i 10sec. Anche ma al decimo sec. Quindi scatta "il tempo di azione", che é il tempo rappresentato, in questo caso, tra il momento del lancio e il momento in cui, dopo avere volato fino dall'altro lato dello schermo e magari rimbalzanto più volte tra le rocce, finisce per ferire un altro scarafaggio (anche della stessa squadra) oppure termina la corsa senza colpire nessuno.   
 
 ---
 
@@ -101,7 +101,7 @@ Non esistono pareggi:
 
 ### ⚖️ Filosofia del Turno
 
-- 20 secondi impongono decisioni rapide
+- 10 secondi impongono decisioni rapide
 - Non tutto può essere fatto in un turno
 - Ogni movimento è una scelta
 - Ogni attacco è definitivo
