@@ -45,7 +45,7 @@ Tutti i file audio di gioco sono contenuti nella cartella:
 
 ```
 
-/suoni
+/sounds
 
 ```
 
@@ -54,15 +54,15 @@ Struttura obbligatoria:
 ```
 
 /sounds
-  ├── byte
-  │    ├── low
-  │    ├── med
-  │    └── hig
-  ├── frust
-  └── kill
-       ├── low
-       ├── med
-       └── hig
+   ├── byte
+   │    ├── low
+   │    ├── med
+   │    └── hig
+   ├── frust
+   └── kill
+        ├── low
+        ├── med
+        └── hig
 
 ```
 
@@ -89,14 +89,29 @@ Struttura obbligatoria:
 
 ```
 
-/sounds/byte/med/
-              ├── ahio.wav
-              ├── mannaggia.wav
-              └── urlo2.wav
+/sounds
+   ├── byte
+   │    ├── low
+   │    │     ├── ach.wav
+   │    │     └── ouch.wav
+   │    ├── med
+   │    │     ├── ahio.wav
+   │    │     ├── mannaggia.wav
+   │    │     └── urlo2.wav
+   │    └── hig
+   │          ├── aaaargh.wav
+   │          ├── damn.wav
+   │          └── wow.wav
+   ├── frust
+   │     ├── wtf.wav
+   │     └── kiddingme.wav
+   └── kill
+         ├── imdying.wav
+         └── grrll.wav
 
 ```
 
-Un colpo di intensità media selezionerà casualmente uno di questi file.
+Un colpo di intensità media che non uccide, selezionerà casualmente uno dei file in sounds/byte/med .
 
 ---
 
