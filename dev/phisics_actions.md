@@ -6,7 +6,7 @@ Questo documento definisce **le regole di fisica e azione** di *Scravagghi* ispi
 
 ---
 
-## 0) Glossario (termini usati)
+## Glossario (termini usati)
 - **Turno**: finestra temporale in cui una squadra controlla 1 scarabeo.
 - **Fase di manovra**: spostamenti/azioni non offensive.
 - **Attacco**: qualsiasi azione che lancia/spara un’arma (termina il turno).
@@ -196,6 +196,8 @@ Per precisione:
 - proiettile: cerchio raggio `r`
 - hit se `distance(p, beetlePos) <= R + r`
 
+### 7.3 Collisioni vicino scarabei
+- se la collisione avviene nelle vicinanze di uno scarabeo e per morfologia lo fa sussultare, lo scarabeo ribaltato potrebbe tornare in piedi e viceversa se in piedi ribaltarsi. Ad ogni buon conto la quantità di danno subìto dallo scarabeo non dovrebbe superare il 10/15%.
 ---
 
 ## 8) Esplosioni, danni e knockback
