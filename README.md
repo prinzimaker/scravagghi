@@ -167,11 +167,11 @@ Ogni colpo e ogni morte sono accompagnati da suoni che comunicano chiaramente **
 
 ### 📂 Struttura dei File Sonori
 
-Tutti i suoni sono contenuti nella cartella:
+Tutti i suoni sono contenuti in una specifica cartella:
 
 ```
 
-/suoni
+( vedi dev/sounds.md ) 
 
 ```
 
@@ -180,29 +180,26 @@ Struttura completa:
 ```
 
 /suoni
-├── ferire
-│    ├── basso
-│    ├── medio
-│    └── alto
-└── uccidere
-       ├── basso
-       ├── medio
-       └── alto
+  ├── byte
+  ├── frust
+  └── kill
 
 ```
 
-- **ferire** → colpi non letali  
-- **uccidere** → colpi fatali  
-- **basso / medio / alto** → intensità del dolore subito
+- **byte: ferire** → colpi non letali  
+- **kill: uccidere** → colpi fatali  
+- **frust: frustrazione** → colpo errato, tempo scaduto
 
 Ogni cartella può contenere **più file audio**.
+
+La cartella byte, ha sottocartelle per definire il suono dipendentemente dall'intensità del colpo subìto
 
 Esempio:
 ```
 
-/suoni/ferire/medio/
-                ├── ahio.wav
-                └── mannaggia.wav
+/sounds/byte/med/
+              ├── ahio.wav
+              └── mannaggia.wav
 
 ```
 
