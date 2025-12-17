@@ -107,3 +107,68 @@ Non esistono pareggi:
 - Ogni attacco è definitivo
 
 In **Scravagghi** il turno serve solo a **sopravvivere abbastanza a lungo da colpire**.
+
+---
+
+## 🎬 Replay e Analisi Partite
+
+Ogni partita viene **automaticamente salvata** come replay.
+
+### Accesso Replay
+
+- **Giocatori FREE**: nessun accesso replay
+- **Giocatori PREMIUM**: possono rivedere le proprie partite (30 giorni)
+- **Giocatori PREMIUM+**: accesso illimitato a tutti i replay (anche storici)
+
+### Utilizzo Replay
+
+I replay permettono di:
+- **Studiare gli errori**: rivedere cosa è andato storto
+- **Imparare dalle vittorie**: capire le strategie vincenti
+- **Analizzare avversari**: studiare il loro stile di gioco
+- **Creare contenuti**: clip da condividere sui social
+
+### Replay Tornei
+
+Le partite di torneo sono **sempre pubbliche** e accessibili a tutti.
+
+Questo permette:
+- Trasparenza nelle competizioni
+- Studio delle strategie dei top player
+- Crescita della community
+
+---
+
+## 📊 Statistiche e Progressione
+
+### Stats Tracciati
+
+Il gioco registra (per utenti Premium):
+- Accuracy: percentuale colpi a segno
+- Damage medio per colpo
+- Weapon effectiveness: danno per arma
+- Win rate generale e per mappa
+- Kill/Death ratio
+- Tempo medio per decisione
+
+### Leaderboard
+
+- **ELO rating**: basato su partite ranked
+- **Aggiornamento**: in tempo reale
+- **Requisiti**: minimo 5 partite giocate
+- **Visibilità**: pubblica per top 100
+
+---
+
+## 🎓 Tutorial e Apprendimento
+
+Premium+ permette creazione tutorial con annotazioni:
+- **Pause interattive**: spiegazioni dettagliate
+- **Slow-motion**: evidenziare momenti chiave
+- **Highlights**: cerchi e frecce per focus
+- **Text overlay**: commenti testuali
+
+Questo favorisce:
+- Community di insegnamento
+- Miglioramento skill generale
+- Content creation di qualità

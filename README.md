@@ -259,30 +259,122 @@ Modalità future:
 
 ## 🛠️ Architettura del Gioco
 
-Moduli principali:
+**Client-Heavy Architecture**: tutta la logica di gioco vive nel browser.
+
+### Client (Phaser 3)
 - Game State Manager
-- Turn Manager
-- Entity System
-- Physics & Movement System
-- Ballistics & Weapons System
-- Terrain & Traps System
-- Damage & Status System
-- Audio System
-- AI Controller
-- UI/UX
+- Physics & Ballistics (custom)
+- Terrain Deformabile (bitmap mask)
+- Collision Detection
+- Damage Calculator
+- Audio System (seed-based)
+- Rendering & Animations
+
+### Server (Node.js)
+- WebSocket Relay (sincronizzazione turni)
+- REST API (auth, tornei, replay)
+- PostgreSQL Database
+- Stripe Integration
+- Replay Storage (Cloudflare R2/S3)
+
+Vedi **ARCHITECTURE.md** per dettagli completi.
+
+---
+
+## 🎬 Replay System
+
+**Feature rivoluzionaria:** ogni partita è automaticamente salvata come replay.
+
+### Come Funziona
+Il server logga ogni comando in sequenza. I replay sono file leggerissimi (3-8 KB compressi) che il client riesegue deterministicamente.
+
+### Features
+- **Replay partite**: rivedi le tue partite (Premium)
+- **Clip creation**: crea clip di max 60s e condividi (Premium)
+- **Statistiche avanzate**: heatmap, accuracy, damage (Premium+)
+- **Tutorial interattivi**: con annotazioni pause/slow-mo (Premium+)
+- **Controlli**: play/pause, speed (0.25x-8x), seek, frame-by-frame
+
+Vedi **REPLAY_SYSTEM.md** per dettagli.
+
+---
+
+## 💰 Modello di Business
+
+### Tier Utenti
+
+**FREE**
+- ✅ Partite casual illimitate
+- ✅ Mappe base (3-5)
+- ✅ Armi standard
+
+**PREMIUM (€4.99/mese)**
+- ✅ Replay proprie partite (30 giorni)
+- ✅ Creazione clip + share
+- ✅ Custom sound pack
+- ✅ Stats avanzate
+- ✅ Tornei premium gratuiti
+
+**PREMIUM+ (€6.99/mese)**
+- ✅ Replay storici illimitati
+- ✅ Tutorial creation tools
+- ✅ Analytics completi
+- ✅ Frame-by-frame playback
+
+### Tornei a Pagamento
+- Entry fee: €2-20
+- Prize pool: 70% distribuito (50/30/20)
+- Replay pubblici automatici
+
+Vedi **MONETIZATION.md** per dettagli.
+
+---
+
+## 📚 Documentazione Tecnica
+
+- **ARCHITECTURE.md** - Architettura client-server completa
+- **REGOLE.md** - Regole di gioco dettagliate
+- **TECH.md** - Stack tecnologico
+- **REPLAY_SYSTEM.md** - Replay, clip, tutorial
+- **MONETIZATION.md** - Business model
+- **DEPLOYMENT.md** - Guida deploy server
+- **database/schema.sql** - Schema PostgreSQL
+- **dev/** - Design documents
 
 ---
 
 ## 🚧 Stato del Progetto
 
-**Fase:** Pre-produzione / Design
+**Fase:** Architettura Completa → Implementazione
 
-### Milestone iniziali
-- [ ] Movimento e salto degli scarabei
-- [ ] Sistema di armi base
-- [ ] Trappole ambientali
-- [ ] Sistema audio completo
-- [ ] Vertical Slice giocabile
+### Documentazione ✅
+- [x] Game design completo
+- [x] Architettura client-server
+- [x] Replay system design
+- [x] Monetizzazione e business model
+- [x] Schema database
+- [x] API endpoints design
+- [x] Deployment strategy
+
+### Milestone Implementazione
+- [ ] Client Phaser 3 MVP
+  - [ ] Movimento e salto degli scarabei
+  - [ ] Sistema di armi base
+  - [ ] Terreno deformabile
+  - [ ] Sistema audio
+- [ ] Server Node.js
+  - [ ] WebSocket relay
+  - [ ] REST API
+  - [ ] Database setup
+- [ ] Replay System
+  - [ ] Logging server-side
+  - [ ] Replay player client
+- [ ] Monetizzazione
+  - [ ] Stripe integration
+  - [ ] Tier system
+- [ ] Vertical Slice giocabile (2v2)
+- [ ] Closed Beta
+- [ ] Public Launch
 
 ---
 
