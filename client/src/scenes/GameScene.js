@@ -22,7 +22,8 @@ export class GameScene extends Phaser.Scene {
     // Stato del gioco
     this.currentTurn = 1;
     this.currentTeamId = 0; // 0 o 1
-    this.currentTeamElement = 1; // Parte da 1
+    this.team0CurrentElement = 1; // Element corrente per team 0
+    this.team1CurrentElement = 1; // Element corrente per team 1
     this.turnTimeLeft = 10000;
     this.gamePhase = 'aiming';
 
@@ -232,7 +233,10 @@ export class GameScene extends Phaser.Scene {
    * Inizia un nuovo turno (NUOVO SISTEMA SEMPLICE)
    */
   startTurn() {
-    console.log(`🎯 Turn ${this.currentTurn} - Team ${this.currentTeamId}, Element ${this.currentTeamElement}`);
+    // Usa l'element corrente per questo team
+    const currentElement = this.currentTeamId === 0 ? this.team0CurrentElement : this.team1CurrentElement;
+
+    console.log(`🎯 Turn ${this.currentTurn} - Team ${this.currentTeamId}, Element ${currentElement}`);
 
     this.gamePhase = 'aiming';
     this.turnTimeLeft = 10000;
@@ -258,22 +262,23 @@ export class GameScene extends Phaser.Scene {
       .map(p => p.team_element)
     );
 
-    // Cerca il player con currentTeamElement, salta i morti
+    // Cerca il player con currentElement, salta i morti
     let selectedPlayer = null;
     let attempts = 0;
+    let searchElement = currentElement;
 
     while (!selectedPlayer && attempts < maxElement) {
       const candidate = this.players.find(
-        p => p.team_id === this.currentTeamId && p.team_element === this.currentTeamElement
+        p => p.team_id === this.currentTeamId && p.team_element === searchElement
       );
 
       if (candidate && candidate.isAlive()) {
         selectedPlayer = candidate;
       } else {
         // Morto o non esiste, vai al prossimo
-        this.currentTeamElement++;
-        if (this.currentTeamElement > maxElement) {
-          this.currentTeamElement = 1; // Wrap around
+        searchElement++;
+        if (searchElement > maxElement) {
+          searchElement = 1; // Wrap around
         }
       }
       attempts++;
@@ -526,16 +531,36 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Passa all'altro team e ricomincia da element 1
+    // Passa all'altro team
     this.currentTeamId = this.currentTeamId === 0 ? 1 : 0;
-    this.currentTeamElement = 1; // Ricomincia sempre da 1
+
+    // Incrementa l'element per il team che giocherà DOPO (cioè il team a cui passiamo)
+    // NO! Dobbiamo incrementare l'element PRIMA di cambiare team
+    // Ripristina il vecchio team per incrementare
+    const teamThatJustPlayed = this.currentTeamId === 0 ? 1 : 0;
+
+    // Incrementa element del team che ha appena giocato
+    if (teamThatJustPlayed === 0) {
+      const maxElement0 = Math.max(...this.players.filter(p => p.team_id === 0).map(p => p.team_element));
+      this.team0CurrentElement++;
+      if (this.team0CurrentElement > maxElement0) {
+        this.team0CurrentElement = 1; // Wrap around
+      }
+    } else {
+      const maxElement1 = Math.max(...this.players.filter(p => p.team_id === 1).map(p => p.team_element));
+      this.team1CurrentElement++;
+      if (this.team1CurrentElement > maxElement1) {
+        this.team1CurrentElement = 1; // Wrap around
+      }
+    }
 
     // Se torniamo al team 0, aumenta il numero di turno
     if (this.currentTeamId === 0) {
       this.currentTurn++;
     }
 
-    console.log(`⏭️ Next: Team ${this.currentTeamId}, Element ${this.currentTeamElement}`);
+    const nextElement = this.currentTeamId === 0 ? this.team0CurrentElement : this.team1CurrentElement;
+    console.log(`⏭️ Next: Team ${this.currentTeamId}, Element ${nextElement}`);
 
     // Prossimo turno
     this.time.delayedCall(1000, () => {
