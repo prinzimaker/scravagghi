@@ -2,8 +2,9 @@
  * Gestisce il mirino e l'input dell'utente per sparare
  */
 export class AimController {
-  constructor(scene) {
+  constructor(scene, soundManager = null) {
     this.scene = scene;
+    this.soundManager = soundManager;
     this.isAiming = false;
     this.angle = 45; // Gradi
     this.power = 0.5; // [0, 1]
@@ -95,6 +96,11 @@ export class AimController {
     this.isCharging = true;
     this.chargeStartTime = Date.now();
     this.power = 0;
+
+    // Avvia suono di carica (loop)
+    if (this.soundManager) {
+      this.soundManager.play('charge');
+    }
   }
 
   /**
@@ -104,6 +110,11 @@ export class AimController {
     if (!this.isAiming || !this.isCharging) return;
 
     this.isCharging = false;
+
+    // Ferma suono di carica
+    if (this.soundManager) {
+      this.soundManager.stop('charge');
+    }
 
     // Calcola potenza finale in base al tempo di carica
     const chargeTime = Date.now() - this.chargeStartTime;
@@ -142,6 +153,12 @@ export class AimController {
   stopAiming() {
     this.isAiming = false;
     this.isCharging = false;
+
+    // Ferma suono di carica se sta suonando
+    if (this.soundManager) {
+      this.soundManager.stop('charge');
+    }
+
     this.setVisible(false);
   }
 

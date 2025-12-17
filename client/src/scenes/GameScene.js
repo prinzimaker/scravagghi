@@ -3,6 +3,7 @@ import { Player } from '../entities/Player.js';
 import { Physics } from '../physics/Physics.js';
 import { AimController } from '../input/AimController.js';
 import { DeterministicRandom } from '../utils/DeterministicRandom.js';
+import { SoundManager } from '../managers/SoundManager.js';
 
 /**
  * Scena principale del gioco
@@ -12,8 +13,24 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
+  /**
+   * Carica gli asset (audio, immagini, ecc.)
+   */
+  preload() {
+    console.log('📦 Loading assets...');
+
+    // Inizializza e carica i suoni
+    this.soundManager = new SoundManager(this);
+    this.soundManager.preload();
+  }
+
   create() {
     console.log('🎮 GameScene created');
+
+    // Inizializza il sound manager
+    if (this.soundManager) {
+      this.soundManager.create();
+    }
 
     // Dimensioni mondo di gioco
     this.gameWidth = 800;
@@ -42,7 +59,7 @@ export class GameScene extends Phaser.Scene {
     this.renderTerrain();
 
     // Inizializza controller di mira
-    this.aimController = new AimController(this);
+    this.aimController = new AimController(this, this.soundManager);
     this.aimController.create();
 
     // Listener per colpo sparato
@@ -303,6 +320,11 @@ export class GameScene extends Phaser.Scene {
     console.log(`🎯 Turn ${this.currentTurn} - Team ${this.currentTeamId}, Element ${selectedPlayer.team_element}`);
     console.log(`🎮 Selected: ${selectedPlayer.name} (HP: ${selectedPlayer.health}/${selectedPlayer.maxHealth})`);
 
+    // Suono inizio turno
+    if (this.soundManager) {
+      this.soundManager.play('turnStart');
+    }
+
     // Inizia la fase di mira
     const flipped = selectedPlayer.team_id === 1; // Team 1 spara a sinistra
     this.aimController.startAiming(
@@ -322,6 +344,11 @@ export class GameScene extends Phaser.Scene {
    */
   handleShot(shotData) {
     console.log('💥 Shot fired!', shotData);
+
+    // Suono dello sparo
+    if (this.soundManager) {
+      this.soundManager.play('shot');
+    }
 
     this.gamePhase = 'shooting';
 
@@ -426,6 +453,11 @@ export class GameScene extends Phaser.Scene {
     );
     explosion.setDepth(1); // Sopra terreno ma sotto i giocatori
 
+    // Suono esplosione
+    if (this.soundManager) {
+      this.soundManager.play('explosion');
+    }
+
     this.tweens.add({
       targets: explosion,
       alpha: 0,
@@ -470,12 +502,22 @@ export class GameScene extends Phaser.Scene {
       if (player.isDead()) {
         console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
 
+        // Suono morte
+        if (wasAlive && this.soundManager) {
+          this.soundManager.play('death');
+        }
+
         // Avvia fade out animato
         if (wasAlive) {
           player.fadeOut(this);
         }
       } else {
         console.log(`💔 ${player.name} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${player.health}/${player.maxHealth}`);
+
+        // Suono colpo
+        if (this.soundManager) {
+          this.soundManager.play('hit');
+        }
       }
 
       // KNOCKBACK: spostamento d'aria proporzionale al danno
@@ -633,6 +675,12 @@ export class GameScene extends Phaser.Scene {
       winner = 'Pareggio!';
     }
 
+    // Suono vittoria/sconfitta
+    if (this.soundManager) {
+      // Per ora suoniamo sempre victory, in futuro si può differenziare
+      this.soundManager.play('victory');
+    }
+
     // Overlay vittoria
     const overlay = this.add.rectangle(
       this.gameWidth / 2,
@@ -772,6 +820,11 @@ export class GameScene extends Phaser.Scene {
         this.activePlayer.takeDamage(penalty);
         this.activePlayer.updateSprite();
 
+        // Suono timeout
+        if (this.soundManager) {
+          this.soundManager.play('timeout');
+        }
+
         // Mostra penalità
         const penaltyText = this.add.text(
           this.activePlayer.position.x,
@@ -806,6 +859,11 @@ export class GameScene extends Phaser.Scene {
     this.players.forEach(player => {
       if (player.isAlive() && player.position.y > this.gameHeight + 50) {
         console.log(`💀 ${player.name} è caduto in un burrone!`);
+
+        // Suono caduta
+        if (this.soundManager) {
+          this.soundManager.play('fall');
+        }
 
         // Uccidi il player
         player.takeDamage(9999);

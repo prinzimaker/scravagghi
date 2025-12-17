@@ -1,0 +1,68 @@
+╔══════════════════════════════════════════════════════════════╗
+║  COME AGGIUNGERE I SUONI AL GIOCO SCRAVAGGHI                ║
+╚══════════════════════════════════════════════════════════════╝
+
+📂 POSIZIONE FILE
+─────────────────
+Copia i tuoi file audio in questa cartella:
+  /client/public/sounds/
+
+Il gioco cercherà i file in questo ordine:
+  1. nome_file.wav  ← Prima scelta
+  2. nome_file.mp3  ← Fallback
+  3. nome_file.ogg  ← Fallback
+
+🎵 ELENCO FILE NECESSARI
+────────────────────────
+shot.wav         - Quando si spara un colpo
+explosion.wav    - Esplosione del proiettile
+hit.wav          - Quando un giocatore viene colpito
+death.wav        - Quando un giocatore muore
+fall.wav         - Quando un giocatore cade nel burrone
+timeout.wav      - Quando scade il tempo del turno
+turn_start.wav   - All'inizio di ogni turno
+charge.wav       - Durante la carica (loop continuo)
+victory.wav      - Quando finisce la partita (vittoria)
+defeat.wav       - Quando finisce la partita (opzionale)
+
+✅ ESEMPIO
+──────────
+Dopo aver copiato i file, la cartella dovrebbe essere così:
+  client/public/sounds/
+    ├── shot.wav
+    ├── explosion.wav
+    ├── hit.wav
+    ├── death.wav
+    ├── fall.wav
+    ├── timeout.wav
+    ├── turn_start.wav
+    ├── charge.wav
+    ├── victory.wav
+    └── defeat.wav
+
+🔊 VOLUMI IMPOSTATI
+───────────────────
+Il gioco ha già i volumi bilanciati:
+  - Effetti sonori (shot, explosion, hit): 80%
+  - Hit: 56% (più basso per non coprire altri suoni)
+  - Turn start: 40% (discreto)
+  - Charge: 32% (loop continuo, non deve disturbare)
+  - Musica vittoria: 70%
+
+💡 NOTA
+───────
+Se un file manca, il gioco funziona comunque! Vedrai un warning
+nella console, ma il gameplay non sarà interrotto.
+
+🚀 COME TESTARE
+───────────────
+1. Copia i file .wav in questa cartella
+2. Avvia il gioco: npm run dev
+3. Apri il browser alla console (F12)
+4. Dovresti vedere: "🔊 Sound Manager initialized"
+5. Gioca e ascolta i suoni!
+
+Se vedi errori di caricamento, controlla:
+  - I nomi dei file sono corretti (minuscolo, underscore)
+  - I file sono nella cartella giusta
+  - Il formato è supportato (WAV, MP3, OGG)
