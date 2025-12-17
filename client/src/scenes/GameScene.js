@@ -1,5 +1,5 @@
 import { TerrainMask } from '../terrain/TerrainMask.js';
-import { Beetle } from '../entities/Beetle.js';
+import { Player } from '../entities/Player.js';
 import { Physics } from '../physics/Physics.js';
 import { AimController } from '../input/AimController.js';
 import { DeterministicRandom } from '../utils/DeterministicRandom.js';
@@ -21,13 +21,10 @@ export class GameScene extends Phaser.Scene {
 
     // Stato del gioco
     this.currentTurn = 1;
-    this.currentTeam = 1;
-    this.turnTimeLeft = 10000; // 10 secondi
-    this.gamePhase = 'aiming'; // aiming, shooting, animating
-
-    // Traccia quale beetle di ogni team sta giocando
-    this.currentBeetleIndexTeam1 = 0;
-    this.currentBeetleIndexTeam2 = 0;
+    this.currentTeamId = 0; // 0 o 1
+    this.currentTeamElement = 1; // Parte da 1
+    this.turnTimeLeft = 10000;
+    this.gamePhase = 'aiming';
 
     // Seed per deterministico
     this.gameSeed = Date.now();
@@ -36,8 +33,8 @@ export class GameScene extends Phaser.Scene {
     // Inizializza terreno
     this.initTerrain();
 
-    // Inizializza scarabei (mock data)
-    this.initBeetles();
+    // Inizializza giocatori (nuovo sistema!)
+    this.initPlayers();
 
     // Render terreno
     this.renderTerrain();
@@ -97,33 +94,51 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Inizializza gli scarabei (mock data)
+   * Inizializza i giocatori (nuovo sistema con array di oggetti)
    */
-  initBeetles() {
-    this.beetles = [];
+  initPlayers() {
+    this.players = [];
 
-    // Team 1 (verde) - 2 scarabei
+    // Team 0 (Verde) - 2 giocatori
+    const team0StartX = 100;
     for (let i = 0; i < 2; i++) {
-      const x = 100 + i * 80;
+      const x = team0StartX + i * 80;
       const y = this.terrain.getGroundY(x);
-      const beetle = new Beetle(`team1-${i}`, 'player1', 1, x, y);
-      beetle.createSprite(this);
-      this.beetles.push(beetle);
+      const player = new Player(
+        `p${this.players.length}`,
+        `Verde${i + 1}`,
+        0, // team_id
+        i + 1, // team_element
+        x,
+        y
+      );
+      player.createSprite(this);
+      this.players.push(player);
     }
 
-    // Team 2 (rosso) - 2 scarabei
+    // Team 1 (Rosso) - 2 giocatori
+    const team1StartX = 620;
     for (let i = 0; i < 2; i++) {
-      const x = 620 + i * 80;
+      const x = team1StartX + i * 80;
       const y = this.terrain.getGroundY(x);
-      const beetle = new Beetle(`team2-${i}`, 'player2', 2, x, y);
-      beetle.createSprite(this);
-      beetle.setFlipped(true);
-      beetle.updateSprite();
-      this.beetles.push(beetle);
+      const player = new Player(
+        `p${this.players.length}`,
+        `Rosso${i + 1}`,
+        1, // team_id
+        i + 1, // team_element
+        x,
+        y
+      );
+      player.createSprite(this);
+      this.players.push(player);
     }
 
-    // Scarabeo attivo corrente
-    this.activeBeetle = this.beetles[0];
+    console.log('👥 Players initialized:', this.players.map(p =>
+      `${p.name}(T${p.team_id}E${p.team_element})`
+    ).join(', '));
+
+    // Giocatore attivo corrente
+    this.activePlayer = null;
   }
 
   /**
@@ -213,61 +228,81 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Inizia un nuovo turno
+   * Inizia un nuovo turno (NUOVO SISTEMA SEMPLICE)
    */
   startTurn() {
-    console.log(`🎯 Turn ${this.currentTurn} - Team ${this.currentTeam}`);
+    console.log(`🎯 Turn ${this.currentTurn} - Team ${this.currentTeamId}, Element ${this.currentTeamElement}`);
 
     this.gamePhase = 'aiming';
     this.turnTimeLeft = 10000;
     this.turnStartTime = Date.now();
-    this.timerPaused = false; // Timer non in pausa all'inizio
+    this.timerPaused = false;
 
-    // Genera nuovo seed per questo turno
+    // Genera nuovo seed
     const rng = new DeterministicRandom(this.turnSeed);
     this.turnSeed = rng.nextInt(1, 999999999);
 
-    // Trova TUTTI gli scarabei vivi di questo team
-    const teamBeetles = this.beetles.filter(
-      b => b.team === this.currentTeam && b.isAlive
+    // Trova tutti i giocatori vivi di questo team
+    const teamPlayers = this.players.filter(p => p.team_id === this.currentTeamId && p.isAlive());
+
+    if (teamPlayers.length === 0) {
+      console.log(`💀 Team ${this.currentTeamId} eliminated! GAME OVER!`);
+      this.endGame();
+      return;
+    }
+
+    // Trova il max team_element per questo team
+    const maxElement = Math.max(...this.players
+      .filter(p => p.team_id === this.currentTeamId)
+      .map(p => p.team_element)
     );
 
-    // Se non ci sono beetle vivi, il team ha perso
-    if (teamBeetles.length === 0) {
-      console.log(`💀 Team ${this.currentTeam} has no alive beetles!`);
+    // Cerca il player con currentTeamElement, salta i morti
+    let selectedPlayer = null;
+    let attempts = 0;
+
+    while (!selectedPlayer && attempts < maxElement) {
+      const candidate = this.players.find(
+        p => p.team_id === this.currentTeamId && p.team_element === this.currentTeamElement
+      );
+
+      if (candidate && candidate.isAlive()) {
+        selectedPlayer = candidate;
+      } else {
+        // Morto o non esiste, vai al prossimo
+        this.currentTeamElement++;
+        if (this.currentTeamElement > maxElement) {
+          this.currentTeamElement = 1; // Wrap around
+        }
+      }
+      attempts++;
+    }
+
+    if (!selectedPlayer) {
+      // Non dovrebbe succedere ma per sicurezza
+      console.error('⚠️ No valid player found!');
       this.endGame();
       return;
     }
 
-    // FIX: Usa l'indice corretto per questo team e fai ciclo tra i beetle
-    let beetleIndex;
-    if (this.currentTeam === 1) {
-      beetleIndex = this.currentBeetleIndexTeam1 % teamBeetles.length;
-      this.currentBeetleIndexTeam1++;
-    } else {
-      beetleIndex = this.currentBeetleIndexTeam2 % teamBeetles.length;
-      this.currentBeetleIndexTeam2++;
-    }
+    // Disattiva tutti, attiva il selezionato
+    this.players.forEach(p => {
+      p.isActive = false;
+      p.updateSprite();
+    });
 
-    this.activeBeetle = teamBeetles[beetleIndex];
+    selectedPlayer.isActive = true;
+    this.activePlayer = selectedPlayer;
+    this.activePlayer.updateSprite();
 
-    console.log(`🎮 Selected beetle: ${this.activeBeetle.id} (HP: ${this.activeBeetle.hp}/${this.activeBeetle.maxHp}, Alive: ${this.activeBeetle.isAlive})`);
-
-    // Verifica che sia ancora vivo (doppio controllo)
-    if (!this.activeBeetle.isAlive) {
-      console.error('⚠️ CRITICAL: Selected a DEAD beetle! This should not happen!');
-      console.error(`Team ${this.currentTeam} alive beetles:`, teamBeetles.map(b => `${b.id}(HP:${b.hp})`).join(', '));
-      // Non chiamare endTurn() per evitare loop infiniti
-      // Invece termina il gioco se succede questo
-      this.endGame();
-      return;
-    }
+    console.log(`🎮 Selected: ${selectedPlayer.name} (HP: ${selectedPlayer.health}/${selectedPlayer.maxHealth})`);
 
     // Inizia la fase di mira
+    const flipped = selectedPlayer.team_id === 1; // Team 1 spara a sinistra
     this.aimController.startAiming(
-      this.activeBeetle.x,
-      this.activeBeetle.y - this.activeBeetle.height,
-      this.activeBeetle.flipped
+      selectedPlayer.position.x,
+      selectedPlayer.position.y - selectedPlayer.height,
+      flipped
     );
 
     this.updateUI();
@@ -283,11 +318,24 @@ export class GameScene extends Phaser.Scene {
 
     // Simula il colpo
     const rng = new DeterministicRandom(this.turnSeed);
-    const maxVelocity = 1200; // pixels/s (raddoppiato per maggiore gittata)
+    const maxVelocity = 1200;
 
-    // FIX: Spara da sopra lo scarabeo, non dai piedi
-    const startX = this.activeBeetle.x;
-    const startY = this.activeBeetle.y - this.activeBeetle.height;
+    const startX = this.activePlayer.position.x;
+    const startY = this.activePlayer.position.y - this.activePlayer.height;
+
+    // Converti players in formato compatibile con Physics (per ora)
+    const beetlesCompat = this.players.map(p => ({
+      x: p.position.x,
+      y: p.position.y,
+      width: p.width,
+      height: p.height,
+      isAlive: p.isAlive(),
+      maxHp: p.maxHealth,
+      takeDamage: (dmg) => p.takeDamage(dmg),
+      hp: p.health,
+      id: p.id,
+      player: p // Riferimento al player originale
+    }));
 
     const result = Physics.simulateShot(
       startX,
@@ -296,7 +344,7 @@ export class GameScene extends Phaser.Scene {
       shotData.power,
       maxVelocity,
       this.terrain,
-      this.beetles,
+      beetlesCompat,
       rng
     );
 
@@ -379,33 +427,48 @@ export class GameScene extends Phaser.Scene {
     this.terrain.excavate(impactPoint.x, impactPoint.y, explosionRadius);
     this.updateTerrainGraphics(impactPoint.x, impactPoint.y, explosionRadius);
 
-    // Applica danni (percentuale in base alla distanza)
+    // Converti players per Physics
+    const beetlesCompat = this.players.map(p => ({
+      x: p.position.x,
+      y: p.position.y,
+      width: p.width,
+      height: p.height,
+      isAlive: p.isAlive(),
+      maxHp: p.maxHealth,
+      takeDamage: (dmg) => p.takeDamage(dmg),
+      hp: p.health,
+      id: p.id,
+      player: p
+    }));
+
+    // Applica danni
     const damages = Physics.applyExplosionDamage(
       impactPoint.x,
       impactPoint.y,
       explosionRadius,
-      this.beetles
+      beetlesCompat
     );
 
     // Mostra danni
     damages.forEach(({ beetle, damage, distance, percent }) => {
-      beetle.updateSprite();
+      const player = beetle.player; // Recupera il player originale
+      player.updateSprite();
 
-      // Log danno con stato alive
-      if (!beetle.isAlive) {
-        console.log(`💀 ${beetle.id} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
+      // Log danno
+      if (player.isDead()) {
+        console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
       } else {
-        console.log(`💔 ${beetle.id} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${beetle.hp}/${beetle.maxHp}`);
+        console.log(`💔 ${player.name} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${player.health}/${player.maxHealth}`);
       }
 
-      // Testo danno con percentuale
+      // Testo danno
       const damageText = this.add.text(
-        beetle.x,
-        beetle.y - 40,
-        beetle.isAlive ? `-${damage} HP (${Math.round(percent)}%)` : '💀 KILLED!',
+        player.position.x,
+        player.position.y - 40,
+        player.isAlive() ? `-${damage} HP (${Math.round(percent)}%)` : '💀 KILLED!',
         {
           fontSize: '18px',
-          fill: beetle.isAlive ? '#ff0000' : '#ffffff',
+          fill: player.isAlive() ? '#ff0000' : '#ffffff',
           fontStyle: 'bold',
           stroke: '#000000',
           strokeThickness: 2
@@ -415,52 +478,62 @@ export class GameScene extends Phaser.Scene {
 
       this.tweens.add({
         targets: damageText,
-        y: beetle.y - 80,
+        y: player.position.y - 80,
         alpha: 0,
         duration: 1000,
         onComplete: () => damageText.destroy()
       });
     });
 
-    // Applica gravità agli scarabei
-    this.beetles.forEach(beetle => {
-      if (Physics.applyGravityToBeetle(beetle, this.terrain)) {
-        beetle.updateSprite();
+    // Applica gravità ai players
+    this.players.forEach(player => {
+      const beetleCompat = {
+        x: player.position.x,
+        y: player.position.y,
+        isAlive: player.isAlive(),
+        moveTo: (x, y) => player.moveTo(x, y)
+      };
+
+      if (Physics.applyGravityToBeetle(beetleCompat, this.terrain)) {
+        player.updateSprite();
       }
     });
   }
 
   /**
-   * Fine del turno
+   * Fine del turno (NUOVO SISTEMA SEMPLICE)
    */
   endTurn() {
     console.log('⏭️ Turn ended');
 
     this.gamePhase = 'animating';
 
-    // Passa al prossimo team
-    this.currentTeam = this.currentTeam === 1 ? 2 : 1;
+    // PRIMA controlla vittoria
+    const team0Alive = this.players.filter(p => p.team_id === 0 && p.isAlive()).length;
+    const team1Alive = this.players.filter(p => p.team_id === 1 && p.isAlive()).length;
 
-    // Se torniamo al team 1, aumenta il numero di turno
-    if (this.currentTeam === 1) {
-      this.currentTurn++;
-    }
+    console.log(`📊 Alive: Team0=${team0Alive}, Team1=${team1Alive}`);
 
-    // Controlla vittoria
-    const team1Alive = this.beetles.filter(b => b.team === 1 && b.isAlive).length;
-    const team2Alive = this.beetles.filter(b => b.team === 2 && b.isAlive).length;
-
-    console.log(`📊 Alive count: Team 1 = ${team1Alive}, Team 2 = ${team2Alive}`);
-
-    if (team1Alive === 0 || team2Alive === 0) {
-      console.log('🏁 Game Over condition met!');
-      this.endGame();
+    if (team0Alive === 0 || team1Alive === 0) {
+      console.log('🏁 GAME OVER! Starting end game sequence...');
+      this.time.delayedCall(1500, () => {
+        this.endGame();
+      });
       return;
     }
 
-    console.log(`⏭️ Next turn: Team ${this.currentTeam}`);
+    // Passa all'altro team e ricomincia da element 1
+    this.currentTeamId = this.currentTeamId === 0 ? 1 : 0;
+    this.currentTeamElement = 1; // Ricomincia sempre da 1
 
-    // Prossimo turno dopo un delay
+    // Se torniamo al team 0, aumenta il numero di turno
+    if (this.currentTeamId === 0) {
+      this.currentTurn++;
+    }
+
+    console.log(`⏭️ Next: Team ${this.currentTeamId}, Element ${this.currentTeamElement}`);
+
+    // Prossimo turno
     this.time.delayedCall(1000, () => {
       this.startTurn();
     });
@@ -472,16 +545,16 @@ export class GameScene extends Phaser.Scene {
   endGame() {
     console.log('🏁 Game ended!');
 
-    const team1Alive = this.beetles.filter(b => b.team === 1 && b.isAlive).length;
-    const team2Alive = this.beetles.filter(b => b.team === 2 && b.isAlive).length;
+    const team0Alive = this.players.filter(p => p.team_id === 0 && p.isAlive()).length;
+    const team1Alive = this.players.filter(p => p.team_id === 1 && p.isAlive()).length;
 
     let winner;
-    if (team1Alive > team2Alive) {
-      winner = 'Team 1 (Verde)';
-    } else if (team2Alive > team1Alive) {
-      winner = 'Team 2 (Rosso)';
+    if (team0Alive > team1Alive) {
+      winner = 'Team 0 (Verde) vince!';
+    } else if (team1Alive > team0Alive) {
+      winner = 'Team 1 (Rosso) vince!';
     } else {
-      winner = 'Pareggio';
+      winner = 'Pareggio!';
     }
 
     // Overlay vittoria
@@ -527,7 +600,8 @@ export class GameScene extends Phaser.Scene {
    * Aggiorna UI
    */
   updateUI() {
-    this.turnText.setText(`Turno ${this.currentTurn} - Team ${this.currentTeam}`);
+    const teamName = this.currentTeamId === 0 ? 'Verde' : 'Rosso';
+    this.turnText.setText(`Turno ${this.currentTurn} - Team ${teamName}`);
 
     const seconds = Math.ceil(this.turnTimeLeft / 1000);
     this.timerText.setText(`${seconds}s`);
@@ -568,36 +642,28 @@ export class GameScene extends Phaser.Scene {
       this.aimController.update(delta);
     }
 
-    // Movimento laterale del beetle attivo con LEFT/RIGHT
-    if (this.gamePhase === 'aiming' && this.activeBeetle && this.aimController.cursors) {
-      const moveSpeed = 80; // pixels/secondo
+    // Movimento laterale del player attivo con LEFT/RIGHT
+    if (this.gamePhase === 'aiming' && this.activePlayer && this.aimController.cursors) {
+      const moveSpeed = 80;
       const deltaSeconds = delta / 1000;
 
       if (this.aimController.cursors.left.isDown) {
-        const newX = this.activeBeetle.x - (moveSpeed * deltaSeconds);
-        // Verifica che non esca dallo schermo
+        const newX = this.activePlayer.position.x - (moveSpeed * deltaSeconds);
         if (newX > 20) {
-          this.activeBeetle.x = newX;
-          // Aggiorna posizione sul terreno
-          const groundY = this.terrain.getGroundY(Math.floor(this.activeBeetle.x));
-          this.activeBeetle.y = groundY;
-          this.activeBeetle.updateSprite();
-          // Aggiorna anche la posizione del mirino
-          this.aimController.shooterX = this.activeBeetle.x;
-          this.aimController.shooterY = this.activeBeetle.y - this.activeBeetle.height;
+          const groundY = this.terrain.getGroundY(Math.floor(newX));
+          this.activePlayer.moveTo(newX, groundY);
+          this.activePlayer.updateSprite();
+          this.aimController.shooterX = newX;
+          this.aimController.shooterY = groundY - this.activePlayer.height;
         }
       } else if (this.aimController.cursors.right.isDown) {
-        const newX = this.activeBeetle.x + (moveSpeed * deltaSeconds);
-        // Verifica che non esca dallo schermo
+        const newX = this.activePlayer.position.x + (moveSpeed * deltaSeconds);
         if (newX < this.gameWidth - 20) {
-          this.activeBeetle.x = newX;
-          // Aggiorna posizione sul terreno
-          const groundY = this.terrain.getGroundY(Math.floor(this.activeBeetle.x));
-          this.activeBeetle.y = groundY;
-          this.activeBeetle.updateSprite();
-          // Aggiorna anche la posizione del mirino
-          this.aimController.shooterX = this.activeBeetle.x;
-          this.aimController.shooterY = this.activeBeetle.y - this.activeBeetle.height;
+          const groundY = this.terrain.getGroundY(Math.floor(newX));
+          this.activePlayer.moveTo(newX, groundY);
+          this.activePlayer.updateSprite();
+          this.aimController.shooterX = newX;
+          this.aimController.shooterY = groundY - this.activePlayer.height;
         }
       }
     }
@@ -626,14 +692,14 @@ export class GameScene extends Phaser.Scene {
 
       if (this.turnTimeLeft === 0 && !this.timerPaused) {
         // Tempo scaduto - penalità 25% HP
-        const penalty = Math.ceil(this.activeBeetle.maxHp * 0.25);
-        this.activeBeetle.takeDamage(penalty);
-        this.activeBeetle.updateSprite();
+        const penalty = Math.ceil(this.activePlayer.maxHealth * 0.25);
+        this.activePlayer.takeDamage(penalty);
+        this.activePlayer.updateSprite();
 
         // Mostra penalità
         const penaltyText = this.add.text(
-          this.activeBeetle.x,
-          this.activeBeetle.y - 60,
+          this.activePlayer.position.x,
+          this.activePlayer.position.y - 60,
           `⏱️ -${penalty} HP (Timeout!)`,
           {
             fontSize: '18px',
@@ -645,13 +711,13 @@ export class GameScene extends Phaser.Scene {
 
         this.tweens.add({
           targets: penaltyText,
-          y: this.activeBeetle.y - 100,
+          y: this.activePlayer.position.y - 100,
           alpha: 0,
           duration: 1500,
           onComplete: () => penaltyText.destroy()
         });
 
-        console.log(`⏱️ Timeout! ${this.activeBeetle.id} loses ${penalty} HP`);
+        console.log(`⏱️ Timeout! ${this.activePlayer.name} loses ${penalty} HP`);
 
         this.aimController.stopAiming();
         this.endTurn();
