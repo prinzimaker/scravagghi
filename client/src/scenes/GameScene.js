@@ -59,7 +59,7 @@ export class GameScene extends Phaser.Scene {
     this.renderTerrain();
 
     // Inizializza controller di mira
-    this.aimController = new AimController(this, this.soundManager);
+    this.aimController = new AimController(this);
     this.aimController.create();
 
     // Listener per colpo sparato
@@ -320,11 +320,6 @@ export class GameScene extends Phaser.Scene {
     console.log(`🎯 Turn ${this.currentTurn} - Team ${this.currentTeamId}, Element ${selectedPlayer.team_element}`);
     console.log(`🎮 Selected: ${selectedPlayer.name} (HP: ${selectedPlayer.health}/${selectedPlayer.maxHealth})`);
 
-    // Suono inizio turno
-    if (this.soundManager) {
-      this.soundManager.play('turnStart');
-    }
-
     // Inizia la fase di mira
     const flipped = selectedPlayer.team_id === 1; // Team 1 spara a sinistra
     this.aimController.startAiming(
@@ -344,11 +339,6 @@ export class GameScene extends Phaser.Scene {
    */
   handleShot(shotData) {
     console.log('💥 Shot fired!', shotData);
-
-    // Suono dello sparo
-    if (this.soundManager) {
-      this.soundManager.play('shot');
-    }
 
     this.gamePhase = 'shooting';
 
@@ -420,6 +410,11 @@ export class GameScene extends Phaser.Scene {
 
           if (result.impactPoint) {
             this.handleImpact(result);
+          } else {
+            // EVENT: onOffTarget - il colpo è mancato completamente
+            if (this.soundManager) {
+              this.soundManager.onOffTarget();
+            }
           }
 
           this.endTurn();
@@ -452,11 +447,6 @@ export class GameScene extends Phaser.Scene {
       0.7
     );
     explosion.setDepth(1); // Sopra terreno ma sotto i giocatori
-
-    // Suono esplosione
-    if (this.soundManager) {
-      this.soundManager.play('explosion');
-    }
 
     this.tweens.add({
       targets: explosion,
@@ -502,9 +492,9 @@ export class GameScene extends Phaser.Scene {
       if (player.isDead()) {
         console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
 
-        // Suono morte
+        // EVENT: onDeath
         if (wasAlive && this.soundManager) {
-          this.soundManager.play('death');
+          this.soundManager.onDeath();
         }
 
         // Avvia fade out animato
@@ -514,9 +504,10 @@ export class GameScene extends Phaser.Scene {
       } else {
         console.log(`💔 ${player.name} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${player.health}/${player.maxHealth}`);
 
-        // Suono colpo
+        // EVENT: onDamage (con intensità basata sul danno)
         if (this.soundManager) {
-          this.soundManager.play('hit');
+          const intensity = this.soundManager.calculateIntensity(damage, player.maxHealth);
+          this.soundManager.onDamage(intensity);
         }
       }
 
@@ -675,11 +666,8 @@ export class GameScene extends Phaser.Scene {
       winner = 'Pareggio!';
     }
 
-    // Suono vittoria/sconfitta
-    if (this.soundManager) {
-      // Per ora suoniamo sempre victory, in futuro si può differenziare
-      this.soundManager.play('victory');
-    }
+    // Nota: non ci sono suoni per vittoria nelle linee guida audio
+    // I suoni sono solo per feedback durante il gameplay (danno, morte, frustrazione)
 
     // Overlay vittoria
     const overlay = this.add.rectangle(
@@ -820,9 +808,9 @@ export class GameScene extends Phaser.Scene {
         this.activePlayer.takeDamage(penalty);
         this.activePlayer.updateSprite();
 
-        // Suono timeout
+        // EVENT: onTimeout
         if (this.soundManager) {
-          this.soundManager.play('timeout');
+          this.soundManager.onTimeout();
         }
 
         // Mostra penalità
@@ -860,14 +848,14 @@ export class GameScene extends Phaser.Scene {
       if (player.isAlive() && player.position.y > this.gameHeight + 50) {
         console.log(`💀 ${player.name} è caduto in un burrone!`);
 
-        // Suono caduta
-        if (this.soundManager) {
-          this.soundManager.play('fall');
-        }
-
         // Uccidi il player
         player.takeDamage(9999);
         player.updateSprite();
+
+        // EVENT: onDeath (caduta = morte)
+        if (this.soundManager) {
+          this.soundManager.onDeath();
+        }
 
         // Avvia fade out animato
         player.fadeOut(this);
