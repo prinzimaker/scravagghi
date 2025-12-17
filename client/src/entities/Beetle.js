@@ -95,21 +95,25 @@ export class Beetle {
     );
     this.sprite.setOrigin(0.5, 1); // Origine ai piedi
 
-    // Barra HP
+    // Barra HP (più grande e visibile)
+    const hpBarHeight = 6;
+    const hpBarY = this.y - this.height - 8;
+
     this.hpBarBg = scene.add.rectangle(
       this.x - this.width / 2,
-      this.y - this.height - 5,
+      hpBarY,
       this.width,
-      4,
+      hpBarHeight,
       0x000000
     );
     this.hpBarBg.setOrigin(0, 0);
+    this.hpBarBg.setStrokeStyle(1, 0xffffff, 0.5);
 
     this.hpBar = scene.add.rectangle(
       this.x - this.width / 2,
-      this.y - this.height - 5,
+      hpBarY,
       this.width * (this.hp / this.maxHp),
-      4,
+      hpBarHeight,
       0x00ff00
     );
     this.hpBar.setOrigin(0, 0);
@@ -125,10 +129,12 @@ export class Beetle {
       // Verrà riabilitato quando useremo sprite veri
     }
     if (this.hpBar && this.hpBarBg) {
+      const hpBarHeight = 6;
+      const hpBarY = this.y - this.height - 8;
       const hpWidth = this.width * (this.hp / this.maxHp);
-      this.hpBar.setSize(hpWidth, 4);
-      this.hpBar.setPosition(this.x - this.width / 2, this.y - this.height - 5);
-      this.hpBarBg.setPosition(this.x - this.width / 2, this.y - this.height - 5);
+      this.hpBar.setSize(hpWidth, hpBarHeight);
+      this.hpBar.setPosition(this.x - this.width / 2, hpBarY);
+      this.hpBarBg.setPosition(this.x - this.width / 2, hpBarY);
 
       // Cambia colore in base agli HP
       if (this.hp < 30) {
