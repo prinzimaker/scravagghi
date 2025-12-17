@@ -190,10 +190,19 @@ export class GameScene extends Phaser.Scene {
     this.timerText.setOrigin(0.5, 0);
 
     // Istruzioni
-    this.instructionsText = this.add.text(10, this.gameHeight - 80,
-      '↑↓: Regola angolo | SPAZIO: Tieni premuto per caricare, rilascia per sparare', {
+    this.instructionsText = this.add.text(10, this.gameHeight - 100,
+      '↑↓: Angolo | ←→: Muovi giocatore | SPAZIO: Carica e spara (timer si ferma)', {
       fontSize: '14px',
       fill: '#fff',
+      backgroundColor: '#000000aa',
+      padding: { x: 5, y: 5 }
+    });
+
+    // Info aggiuntivo
+    this.infoText = this.add.text(10, this.gameHeight - 70,
+      'La barra verde sotto il giocatore mostra la vita', {
+      fontSize: '12px',
+      fill: '#00ff00',
       backgroundColor: '#000000aa',
       padding: { x: 5, y: 5 }
     });
@@ -208,6 +217,7 @@ export class GameScene extends Phaser.Scene {
     this.gamePhase = 'aiming';
     this.turnTimeLeft = 10000;
     this.turnStartTime = Date.now();
+    this.timerPaused = false; // Timer non in pausa all'inizio
 
     // Genera nuovo seed per questo turno
     const rng = new DeterministicRandom(this.turnSeed);
@@ -536,12 +546,63 @@ export class GameScene extends Phaser.Scene {
       this.aimController.update(delta);
     }
 
-    // Aggiorna timer turno
-    if (this.gamePhase === 'aiming') {
-      const elapsed = Date.now() - this.turnStartTime;
-      this.turnTimeLeft = Math.max(0, 10000 - elapsed);
+    // Movimento laterale del beetle attivo con LEFT/RIGHT
+    if (this.gamePhase === 'aiming' && this.activeBeetle && this.aimController.cursors) {
+      const moveSpeed = 80; // pixels/secondo
+      const deltaSeconds = delta / 1000;
 
-      if (this.turnTimeLeft === 0) {
+      if (this.aimController.cursors.left.isDown) {
+        const newX = this.activeBeetle.x - (moveSpeed * deltaSeconds);
+        // Verifica che non esca dallo schermo
+        if (newX > 20) {
+          this.activeBeetle.x = newX;
+          // Aggiorna posizione sul terreno
+          const groundY = this.terrain.getGroundY(Math.floor(this.activeBeetle.x));
+          this.activeBeetle.y = groundY;
+          this.activeBeetle.updateSprite();
+          // Aggiorna anche la posizione del mirino
+          this.aimController.shooterX = this.activeBeetle.x;
+          this.aimController.shooterY = this.activeBeetle.y - this.activeBeetle.height;
+        }
+      } else if (this.aimController.cursors.right.isDown) {
+        const newX = this.activeBeetle.x + (moveSpeed * deltaSeconds);
+        // Verifica che non esca dallo schermo
+        if (newX < this.gameWidth - 20) {
+          this.activeBeetle.x = newX;
+          // Aggiorna posizione sul terreno
+          const groundY = this.terrain.getGroundY(Math.floor(this.activeBeetle.x));
+          this.activeBeetle.y = groundY;
+          this.activeBeetle.updateSprite();
+          // Aggiorna anche la posizione del mirino
+          this.aimController.shooterX = this.activeBeetle.x;
+          this.aimController.shooterY = this.activeBeetle.y - this.activeBeetle.height;
+        }
+      }
+    }
+
+    // Aggiorna timer turno (si ferma quando si carica il colpo)
+    if (this.gamePhase === 'aiming') {
+      // Se si sta caricando, pausa il timer
+      if (this.aimController && this.aimController.isCharging) {
+        if (!this.timerPaused) {
+          this.timerPaused = true;
+          this.pausedTimeLeft = this.turnTimeLeft;
+          console.log('⏸️ Timer paused while charging');
+        }
+        // Mantieni il tempo congelato
+        this.turnTimeLeft = this.pausedTimeLeft;
+      } else {
+        // Timer normale
+        if (this.timerPaused) {
+          // Riprendi da dove eri rimasto
+          this.timerPaused = false;
+          this.turnStartTime = Date.now() - (10000 - this.pausedTimeLeft);
+        }
+        const elapsed = Date.now() - this.turnStartTime;
+        this.turnTimeLeft = Math.max(0, 10000 - elapsed);
+      }
+
+      if (this.turnTimeLeft === 0 && !this.timerPaused) {
         // Tempo scaduto - penalità 25% HP
         const penalty = Math.ceil(this.activeBeetle.maxHp * 0.25);
         this.activeBeetle.takeDamage(penalty);
