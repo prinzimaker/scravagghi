@@ -224,12 +224,20 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.activeBeetle = teamBeetles[0];
+    // Trova il primo scarabeo vivo
+    let beetleIndex = 0;
+    this.activeBeetle = teamBeetles[beetleIndex];
 
-    // FIX: Verifica che lo scarabeo sia ancora vivo
+    // FIX: Continua a cercare finché non trovi uno vivo
+    while (!this.activeBeetle.isAlive && beetleIndex < teamBeetles.length - 1) {
+      beetleIndex++;
+      this.activeBeetle = teamBeetles[beetleIndex];
+    }
+
+    // Se anche dopo la ricerca non c'è nessuno vivo, fine gioco
     if (!this.activeBeetle.isAlive) {
-      console.warn('⚠️ Selected beetle is dead, skipping turn');
-      this.endTurn();
+      console.warn('⚠️ No alive beetles left for this team');
+      this.endGame();
       return;
     }
 
@@ -253,7 +261,7 @@ export class GameScene extends Phaser.Scene {
 
     // Simula il colpo
     const rng = new DeterministicRandom(this.turnSeed);
-    const maxVelocity = 600; // pixels/s
+    const maxVelocity = 1200; // pixels/s (raddoppiato per maggiore gittata)
 
     // FIX: Spara da sopra lo scarabeo, non dai piedi
     const startX = this.activeBeetle.x;
@@ -290,7 +298,7 @@ export class GameScene extends Phaser.Scene {
     );
 
     let currentPoint = 0;
-    const animSpeed = 3; // Punti per frame
+    const animSpeed = 0.9; // Punti per frame (ridotto al 30% per animazione più lenta)
 
     // Timer per animazione
     const timer = this.time.addEvent({
@@ -325,8 +333,8 @@ export class GameScene extends Phaser.Scene {
     const { impactPoint, hitBeetle } = result;
 
     // Effetto esplosione
-    const explosionRadius = 30;
-    const maxDamage = 35;
+    // Raggio 40px: 0-5px=100%, 20px=60%, 40px=20% del max HP
+    const explosionRadius = 40;
 
     // Grafica esplosione
     const explosion = this.add.circle(
@@ -349,25 +357,31 @@ export class GameScene extends Phaser.Scene {
     this.terrain.excavate(impactPoint.x, impactPoint.y, explosionRadius);
     this.updateTerrainGraphics(impactPoint.x, impactPoint.y, explosionRadius);
 
-    // Applica danni
+    // Applica danni (percentuale in base alla distanza)
     const damages = Physics.applyExplosionDamage(
       impactPoint.x,
       impactPoint.y,
       explosionRadius,
-      maxDamage,
       this.beetles
     );
 
     // Mostra danni
-    damages.forEach(({ beetle, damage }) => {
+    damages.forEach(({ beetle, damage, distance, percent }) => {
       beetle.updateSprite();
 
-      // Testo danno
-      const damageText = this.add.text(beetle.x, beetle.y - 40, `-${damage}`, {
-        fontSize: '20px',
-        fill: '#ff0000',
-        fontStyle: 'bold'
-      });
+      // Testo danno con percentuale
+      const damageText = this.add.text(
+        beetle.x,
+        beetle.y - 40,
+        `-${damage} HP (${Math.round(percent)}%)`,
+        {
+          fontSize: '18px',
+          fill: '#ff0000',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        }
+      );
       damageText.setOrigin(0.5);
 
       this.tweens.add({
@@ -378,7 +392,7 @@ export class GameScene extends Phaser.Scene {
         onComplete: () => damageText.destroy()
       });
 
-      console.log(`💔 ${beetle.id} took ${damage} damage (HP: ${beetle.hp})`);
+      console.log(`💔 ${beetle.id} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${beetle.hp}`);
     });
 
     // Applica gravità agli scarabei
