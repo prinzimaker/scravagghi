@@ -25,6 +25,10 @@ export class GameScene extends Phaser.Scene {
     this.turnTimeLeft = 10000; // 10 secondi
     this.gamePhase = 'aiming'; // aiming, shooting, animating
 
+    // Traccia quale beetle di ogni team sta giocando
+    this.currentBeetleIndexTeam1 = 0;
+    this.currentBeetleIndexTeam2 = 0;
+
     // Seed per deterministico
     this.gameSeed = Date.now();
     this.turnSeed = this.gameSeed;
@@ -223,30 +227,38 @@ export class GameScene extends Phaser.Scene {
     const rng = new DeterministicRandom(this.turnSeed);
     this.turnSeed = rng.nextInt(1, 999999999);
 
-    // Trova lo scarabeo attivo per questo team
+    // Trova TUTTI gli scarabei vivi di questo team
     const teamBeetles = this.beetles.filter(
       b => b.team === this.currentTeam && b.isAlive
     );
 
+    // Se non ci sono beetle vivi, il team ha perso
     if (teamBeetles.length === 0) {
-      // Team ha perso
+      console.log(`💀 Team ${this.currentTeam} has no alive beetles!`);
       this.endGame();
       return;
     }
 
-    // Trova il primo scarabeo vivo
-    let beetleIndex = 0;
-    this.activeBeetle = teamBeetles[beetleIndex];
-
-    // FIX: Continua a cercare finché non trovi uno vivo
-    while (!this.activeBeetle.isAlive && beetleIndex < teamBeetles.length - 1) {
-      beetleIndex++;
-      this.activeBeetle = teamBeetles[beetleIndex];
+    // FIX: Usa l'indice corretto per questo team e fai ciclo tra i beetle
+    let beetleIndex;
+    if (this.currentTeam === 1) {
+      beetleIndex = this.currentBeetleIndexTeam1 % teamBeetles.length;
+      this.currentBeetleIndexTeam1++;
+    } else {
+      beetleIndex = this.currentBeetleIndexTeam2 % teamBeetles.length;
+      this.currentBeetleIndexTeam2++;
     }
 
-    // Se anche dopo la ricerca non c'è nessuno vivo, fine gioco
+    this.activeBeetle = teamBeetles[beetleIndex];
+
+    console.log(`🎮 Selected beetle: ${this.activeBeetle.id} (HP: ${this.activeBeetle.hp}/${this.activeBeetle.maxHp}, Alive: ${this.activeBeetle.isAlive})`);
+
+    // Verifica che sia ancora vivo (doppio controllo)
     if (!this.activeBeetle.isAlive) {
-      console.warn('⚠️ No alive beetles left for this team');
+      console.error('⚠️ CRITICAL: Selected a DEAD beetle! This should not happen!');
+      console.error(`Team ${this.currentTeam} alive beetles:`, teamBeetles.map(b => `${b.id}(HP:${b.hp})`).join(', '));
+      // Non chiamare endTurn() per evitare loop infiniti
+      // Invece termina il gioco se succede questo
       this.endGame();
       return;
     }
@@ -379,14 +391,21 @@ export class GameScene extends Phaser.Scene {
     damages.forEach(({ beetle, damage, distance, percent }) => {
       beetle.updateSprite();
 
+      // Log danno con stato alive
+      if (!beetle.isAlive) {
+        console.log(`💀 ${beetle.id} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
+      } else {
+        console.log(`💔 ${beetle.id} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${beetle.hp}/${beetle.maxHp}`);
+      }
+
       // Testo danno con percentuale
       const damageText = this.add.text(
         beetle.x,
         beetle.y - 40,
-        `-${damage} HP (${Math.round(percent)}%)`,
+        beetle.isAlive ? `-${damage} HP (${Math.round(percent)}%)` : '💀 KILLED!',
         {
           fontSize: '18px',
-          fill: '#ff0000',
+          fill: beetle.isAlive ? '#ff0000' : '#ffffff',
           fontStyle: 'bold',
           stroke: '#000000',
           strokeThickness: 2
@@ -401,8 +420,6 @@ export class GameScene extends Phaser.Scene {
         duration: 1000,
         onComplete: () => damageText.destroy()
       });
-
-      console.log(`💔 ${beetle.id} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${beetle.hp}`);
     });
 
     // Applica gravità agli scarabei
@@ -433,10 +450,15 @@ export class GameScene extends Phaser.Scene {
     const team1Alive = this.beetles.filter(b => b.team === 1 && b.isAlive).length;
     const team2Alive = this.beetles.filter(b => b.team === 2 && b.isAlive).length;
 
+    console.log(`📊 Alive count: Team 1 = ${team1Alive}, Team 2 = ${team2Alive}`);
+
     if (team1Alive === 0 || team2Alive === 0) {
+      console.log('🏁 Game Over condition met!');
       this.endGame();
       return;
     }
+
+    console.log(`⏭️ Next turn: Team ${this.currentTeam}`);
 
     // Prossimo turno dopo un delay
     this.time.delayedCall(1000, () => {
