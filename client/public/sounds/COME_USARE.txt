@@ -1,0 +1,174 @@
+╔══════════════════════════════════════════════════════════════╗
+║         SISTEMA AUDIO SCRAVAGGHI - GUIDA RAPIDA             ║
+╚══════════════════════════════════════════════════════════════╝
+
+📂 STRUTTURA OBBLIGATORIA
+═══════════════════════════
+
+Copia i tuoi file audio seguendo ESATTAMENTE questa struttura:
+
+/sounds
+   ├── byte/
+   │    ├── low/      ← Danni bassi
+   │    ├── med/      ← Danni medi
+   │    └── hig/      ← Danni alti
+   ├── kill/          ← Morte
+   └── frust/         ← Frustrazione
+
+🎲 CARATTERISTICA CHIAVE
+═══════════════════════
+
+OGNI cartella può contenere MULTIPLI file!
+Il gioco ne sceglierà uno a caso ogni volta.
+
+Esempio:
+  /sounds/byte/low/
+    ├── ahi.wav
+    ├── ouch.wav
+    └── uffa.wav
+
+Quando un player subisce danno basso, il gioco riprodurrà
+RANDOMICAMENTE uno di questi 3 file (mai lo stesso 2 volte di fila).
+
+📊 QUANDO VENGONO SUONATI
+═════════════════════════
+
+byte/low/    → Danno < 20% HP (colpo leggero)
+byte/med/    → Danno 20-50% HP (colpo medio)
+byte/hig/    → Danno > 50% HP (colpo devastante)
+kill/        → Player muore (qualsiasi causa)
+frust/       → Timeout (tempo scaduto) o Miss (colpo mancato)
+
+💡 ESEMPIO PRATICO
+═════════════════
+
+Scenario: Il tuo scarabeo ha 100 HP e subisce 15 HP di danno
+
+Calcolo: 15/100 = 15% (< 20%)
+Categoria: byte/low/
+Risultato: Il gioco riproduce RANDOM uno dei file in byte/low/
+
+✅ SETUP VELOCE
+═══════════════
+
+1. Registra o scarica almeno 2-3 file per ogni cartella
+2. Nominali come vuoi (es: scream1.wav, ouch.wav, damn.mp3)
+3. Copiali nella struttura corretta
+4. Avvia: npm run dev
+5. FATTO! Il gioco li carica automaticamente
+
+🎯 ESEMPIO COMPLETO
+══════════════════
+
+/sounds
+   ├── byte/
+   │    ├── low/
+   │    │     ├── ahi.wav
+   │    │     ├── ouch.wav
+   │    │     └── auch.wav
+   │    ├── med/
+   │    │     ├── ahio.wav
+   │    │     ├── mannaggia.wav
+   │    │     ├── dolor.wav
+   │    │     └── maledizione.wav
+   │    └── hig/
+   │          ├── aaaargh.wav
+   │          ├── noooo.wav
+   │          ├── dannazione.wav
+   │          └── aiuto.wav
+   ├── kill/
+   │     ├── morto.wav
+   │     ├── muoio.wav
+   │     └── addio.wav
+   └── frust/
+         ├── accidenti.wav
+         ├── porcaccia.wav
+         └── maledetti.wav
+
+📝 FORMATI SUPPORTATI
+═══════════════════
+
+WAV  ← Raccomandato (qualità max, compatibilità 100%)
+MP3  ← Alternativa (file più piccoli)
+OGG  ← Fallback
+
+Il gioco prova a caricare in questo ordine:
+  1. file.wav
+  2. file.mp3 (se .wav manca)
+  3. file.ogg (se entrambi mancano)
+
+⚠️ IMPORTANTE
+════════════
+
+❌ NON mettere file nella cartella sbagliata!
+❌ NON usare suoni troppo lunghi (max 3 secondi)
+❌ NON mixare volumi molto diversi
+✅ Normalizza tutti i file allo stesso volume
+✅ Usa nomi descrittivi per i file
+✅ Aggiungi ALMENO 2 file per cartella (per varietà)
+
+🔊 TEST
+═════
+
+Apri la console del browser (F12) e cerca:
+
+  📦 Loading Scravagghi audio system...
+  🔊 Scravagghi Audio System initialized
+     - Byte/Low: 3 files ← Numero file trovati
+     - Byte/Med: 4 files
+     - Byte/Hig: 4 files
+     - Kill: 3 files
+     - Frust: 3 files
+
+Durante il gioco vedrai:
+  🔊 Damage sound (med)  ← Suono riprodotto
+  🔊 Death sound
+  🔊 Frustration sound (timeout)
+
+🎨 PERSONALIZZAZIONE
+═══════════════════
+
+Puoi creare "sound pack" tematici:
+
+COMICO    → Suoni buffi ed esagerati
+REALISTICO → Urli veri e naturali
+RETRO     → Effetti 8-bit stile arcade
+MEME      → Citazioni famose o battute
+
+Il sistema supporta QUALSIASI tipo di audio!
+
+🔧 PROBLEMI?
+═══════════
+
+"Non sento nulla"
+  → Controlla console (F12) per errori
+  → Verifica struttura cartelle
+  → Prova con file .wav
+
+"Si sente sempre lo stesso"
+  → Serve ALMENO 2 file per cartella
+  → Con 1 file, quello viene sempre riprodotto
+
+"Volume troppo alto/basso"
+  → Normalizza i file con Audacity
+  → Porta tutto allo stesso livello
+
+📚 RISORSE GRATUITE
+══════════════════
+
+Trova suoni gratis su:
+
+  • Freesound.org      ← Database enorme
+  • OpenGameArt.org    ← Audio per giochi
+  • Zapsplat.com       ← Effetti sonori
+  • SoundBible.com     ← Libreria semplice
+
+🚀 PRONTO?
+═════════
+
+1. Crea la struttura cartelle ✓
+2. Aggiungi almeno 2 file per cartella ✓
+3. Avvia: npm run dev ✓
+4. Gioca e ascolta! ✓
+
+Buon divertimento con Scravagghi! 🪲💥

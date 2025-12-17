@@ -3,6 +3,7 @@ import { Player } from '../entities/Player.js';
 import { Physics } from '../physics/Physics.js';
 import { AimController } from '../input/AimController.js';
 import { DeterministicRandom } from '../utils/DeterministicRandom.js';
+import { SoundManager } from '../managers/SoundManager.js';
 
 /**
  * Scena principale del gioco
@@ -12,8 +13,24 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
+  /**
+   * Carica gli asset (audio, immagini, ecc.)
+   */
+  preload() {
+    console.log('📦 Loading assets...');
+
+    // Inizializza e carica i suoni
+    this.soundManager = new SoundManager(this);
+    this.soundManager.preload();
+  }
+
   create() {
     console.log('🎮 GameScene created');
+
+    // Inizializza il sound manager
+    if (this.soundManager) {
+      this.soundManager.create();
+    }
 
     // Dimensioni mondo di gioco
     this.gameWidth = 800;
@@ -393,6 +410,11 @@ export class GameScene extends Phaser.Scene {
 
           if (result.impactPoint) {
             this.handleImpact(result);
+          } else {
+            // EVENT: onOffTarget - il colpo è mancato completamente
+            if (this.soundManager) {
+              this.soundManager.onOffTarget();
+            }
           }
 
           this.endTurn();
@@ -470,12 +492,23 @@ export class GameScene extends Phaser.Scene {
       if (player.isDead()) {
         console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
 
+        // EVENT: onDeath
+        if (wasAlive && this.soundManager) {
+          this.soundManager.onDeath();
+        }
+
         // Avvia fade out animato
         if (wasAlive) {
           player.fadeOut(this);
         }
       } else {
         console.log(`💔 ${player.name} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${player.health}/${player.maxHealth}`);
+
+        // EVENT: onDamage (con intensità basata sul danno)
+        if (this.soundManager) {
+          const intensity = this.soundManager.calculateIntensity(damage, player.maxHealth);
+          this.soundManager.onDamage(intensity);
+        }
       }
 
       // KNOCKBACK: spostamento d'aria proporzionale al danno
@@ -633,6 +666,9 @@ export class GameScene extends Phaser.Scene {
       winner = 'Pareggio!';
     }
 
+    // Nota: non ci sono suoni per vittoria nelle linee guida audio
+    // I suoni sono solo per feedback durante il gameplay (danno, morte, frustrazione)
+
     // Overlay vittoria
     const overlay = this.add.rectangle(
       this.gameWidth / 2,
@@ -772,6 +808,11 @@ export class GameScene extends Phaser.Scene {
         this.activePlayer.takeDamage(penalty);
         this.activePlayer.updateSprite();
 
+        // EVENT: onTimeout
+        if (this.soundManager) {
+          this.soundManager.onTimeout();
+        }
+
         // Mostra penalità
         const penaltyText = this.add.text(
           this.activePlayer.position.x,
@@ -810,6 +851,11 @@ export class GameScene extends Phaser.Scene {
         // Uccidi il player
         player.takeDamage(9999);
         player.updateSprite();
+
+        // EVENT: onDeath (caduta = morte)
+        if (this.soundManager) {
+          this.soundManager.onDeath();
+        }
 
         // Avvia fade out animato
         player.fadeOut(this);
