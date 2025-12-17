@@ -121,7 +121,8 @@ export class Beetle {
   updateSprite() {
     if (this.sprite) {
       this.sprite.setPosition(this.x, this.y);
-      this.sprite.setFlipX(this.flipped);
+      // Note: setFlipX() non funziona con Rectangle, solo con Sprite
+      // Verrà riabilitato quando useremo sprite veri
     }
     if (this.hpBar && this.hpBarBg) {
       const hpWidth = this.width * (this.hp / this.maxHp);
