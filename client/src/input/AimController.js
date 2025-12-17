@@ -162,13 +162,31 @@ export class AimController {
   update(delta) {
     if (!this.isAiming) return;
 
-    // Aggiusta angolo con frecce
+    // Aggiusta angolo con frecce (INTUITIVO: UP sempre verso alto, DOWN sempre verso basso)
+    const angleChange = 60 * (delta / 1000);
+
     if (this.cursors.up.isDown) {
-      this.angle += 60 * (delta / 1000);
-      this.angle = Math.min(this.maxAngle, this.angle);
+      // UP dovrebbe sempre alzare la freccia
+      if (this.angle <= 90) {
+        // Lato destro (0-90°): aumenta angolo per alzare
+        this.angle += angleChange;
+        this.angle = Math.min(this.maxAngle, this.angle);
+      } else {
+        // Lato sinistro (90-180°): diminuisci angolo per alzare
+        this.angle -= angleChange;
+        this.angle = Math.max(this.minAngle, this.angle);
+      }
     } else if (this.cursors.down.isDown) {
-      this.angle -= 60 * (delta / 1000);
-      this.angle = Math.max(this.minAngle, this.angle);
+      // DOWN dovrebbe sempre abbassare la freccia
+      if (this.angle < 90) {
+        // Lato destro (0-90°): diminuisci angolo per abbassare
+        this.angle -= angleChange;
+        this.angle = Math.max(this.minAngle, this.angle);
+      } else {
+        // Lato sinistro (90-180°): aumenta angolo per abbassare
+        this.angle += angleChange;
+        this.angle = Math.min(this.maxAngle, this.angle);
+      }
     }
 
     // Se sta caricando, aumenta la potenza
