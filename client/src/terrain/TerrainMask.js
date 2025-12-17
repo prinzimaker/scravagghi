@@ -61,45 +61,6 @@ export class TerrainMask {
   }
 
   /**
-   * Genera un terreno collinare procedurale
-   */
-  generateHilly(seed, amplitude = 80, frequency = 0.01) {
-    const { DeterministicRandom } = require('../utils/DeterministicRandom.js');
-    const rng = new DeterministicRandom(seed);
-
-    // Genera alcune colline casuali
-    const numHills = rng.nextInt(3, 6);
-    const hills = [];
-
-    for (let i = 0; i < numHills; i++) {
-      hills.push({
-        x: rng.nextFloat(0, this.width),
-        height: rng.nextFloat(amplitude * 0.5, amplitude * 1.5),
-        width: rng.nextFloat(100, 300)
-      });
-    }
-
-    // Riempie il terreno
-    for (let x = 0; x < this.width; x++) {
-      let groundY = this.height * 0.7; // Base height
-
-      // Somma le colline
-      for (const hill of hills) {
-        const dist = Math.abs(x - hill.x);
-        if (dist < hill.width) {
-          const factor = Math.cos((dist / hill.width) * Math.PI);
-          groundY -= hill.height * factor;
-        }
-      }
-
-      // Riempie dalla groundY in giù
-      for (let y = Math.floor(groundY); y < this.height; y++) {
-        this.setPixel(x, y, true);
-      }
-    }
-  }
-
-  /**
    * Trova il punto più alto del terreno in una colonna x
    */
   getGroundY(x) {
