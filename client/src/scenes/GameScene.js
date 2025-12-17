@@ -26,6 +26,7 @@ export class GameScene extends Phaser.Scene {
     this.team1CurrentElement = 1; // Element corrente per team 1
     this.turnTimeLeft = 10000;
     this.gamePhase = 'aiming';
+    this.isTurnTransitioning = false; // Previene chiamate multiple a endTurn()
 
     // Seed per deterministico
     this.gameSeed = Date.now();
@@ -236,8 +237,6 @@ export class GameScene extends Phaser.Scene {
     // Usa l'element corrente per questo team
     const currentElement = this.currentTeamId === 0 ? this.team0CurrentElement : this.team1CurrentElement;
 
-    console.log(`🎯 Turn ${this.currentTurn} - Team ${this.currentTeamId}, Element ${currentElement}`);
-
     this.gamePhase = 'aiming';
     this.turnTimeLeft = 10000;
     this.turnStartTime = Date.now();
@@ -301,6 +300,7 @@ export class GameScene extends Phaser.Scene {
     this.activePlayer = selectedPlayer;
     this.activePlayer.updateSprite();
 
+    console.log(`🎯 Turn ${this.currentTurn} - Team ${this.currentTeamId}, Element ${selectedPlayer.team_element}`);
     console.log(`🎮 Selected: ${selectedPlayer.name} (HP: ${selectedPlayer.health}/${selectedPlayer.maxHealth})`);
 
     // Inizia la fase di mira
@@ -312,6 +312,9 @@ export class GameScene extends Phaser.Scene {
     );
 
     this.updateUI();
+
+    // Reset del flag SOLO quando il turno è completamente avviato
+    this.isTurnTransitioning = false;
   }
 
   /**
@@ -513,8 +516,15 @@ export class GameScene extends Phaser.Scene {
    * Fine del turno (NUOVO SISTEMA SEMPLICE)
    */
   endTurn() {
+    // Previeni chiamate multiple
+    if (this.isTurnTransitioning) {
+      console.warn('⚠️ endTurn() called during transition, ignoring');
+      return;
+    }
+
     console.log('⏭️ Turn ended');
 
+    this.isTurnTransitioning = true;
     this.gamePhase = 'animating';
 
     // PRIMA controlla vittoria
