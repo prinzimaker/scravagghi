@@ -7,8 +7,8 @@ export class AimController {
     this.isAiming = false;
     this.angle = 45; // Gradi
     this.power = 0.5; // [0, 1]
-    this.minAngle = -85;
-    this.maxAngle = 85;
+    this.minAngle = 5; // Quasi orizzontale a destra
+    this.maxAngle = 175; // Quasi orizzontale a sinistra
 
     // Grafica
     this.aimLine = null;
@@ -127,7 +127,8 @@ export class AimController {
     this.shooterY = beetleY;
     this.flipped = flipped;
 
-    // Reset
+    // Reset - angolo iniziale basato sulla direzione
+    // 45° spara a destra, 135° spara a sinistra
     this.angle = flipped ? 135 : 45;
     this.power = 0.5;
     this.isCharging = false;
