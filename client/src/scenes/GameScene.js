@@ -25,9 +25,9 @@ export class GameScene extends Phaser.Scene {
     this.turnTimeLeft = 10000; // 10 secondi
     this.gamePhase = 'aiming'; // aiming, shooting, animating
 
-    // Traccia quale beetle di ogni team sta giocando
-    this.currentBeetleIndexTeam1 = 0;
-    this.currentBeetleIndexTeam2 = 0;
+    // Traccia l'ID dell'ultimo beetle che ha giocato per ogni team
+    this.lastPlayedBeetleTeam1 = null;
+    this.lastPlayedBeetleTeam2 = null;
 
     // Seed per deterministico
     this.gameSeed = Date.now();
@@ -221,7 +221,7 @@ export class GameScene extends Phaser.Scene {
     this.gamePhase = 'aiming';
     this.turnTimeLeft = 10000;
     this.turnStartTime = Date.now();
-    this.timerPaused = false; // Timer non in pausa all'inizio
+    this.timerPaused = false;
 
     // Genera nuovo seed per questo turno
     const rng = new DeterministicRandom(this.turnSeed);
@@ -232,33 +232,50 @@ export class GameScene extends Phaser.Scene {
       b => b.team === this.currentTeam && b.isAlive
     );
 
+    console.log(`Team ${this.currentTeam} alive beetles:`, teamBeetles.map(b => `${b.id}(HP:${b.hp})`).join(', '));
+
     // Se non ci sono beetle vivi, il team ha perso
     if (teamBeetles.length === 0) {
-      console.log(`💀 Team ${this.currentTeam} has no alive beetles!`);
+      console.log(`💀 Team ${this.currentTeam} has NO alive beetles! GAME OVER!`);
       this.endGame();
       return;
     }
 
-    // FIX: Usa l'indice corretto per questo team e fai ciclo tra i beetle
-    let beetleIndex;
-    if (this.currentTeam === 1) {
-      beetleIndex = this.currentBeetleIndexTeam1 % teamBeetles.length;
-      this.currentBeetleIndexTeam1++;
+    // FIX: Seleziona il prossimo beetle in modo round-robin
+    let selectedBeetle;
+    const lastPlayedId = this.currentTeam === 1 ? this.lastPlayedBeetleTeam1 : this.lastPlayedBeetleTeam2;
+
+    if (lastPlayedId === null) {
+      // Prima volta, seleziona il primo beetle
+      selectedBeetle = teamBeetles[0];
     } else {
-      beetleIndex = this.currentBeetleIndexTeam2 % teamBeetles.length;
-      this.currentBeetleIndexTeam2++;
+      // Trova l'indice dell'ultimo beetle che ha giocato
+      const lastIndex = teamBeetles.findIndex(b => b.id === lastPlayedId);
+
+      if (lastIndex === -1) {
+        // L'ultimo beetle che ha giocato è morto, prendi il primo disponibile
+        selectedBeetle = teamBeetles[0];
+      } else {
+        // Prendi il prossimo nella lista (con wrap-around)
+        const nextIndex = (lastIndex + 1) % teamBeetles.length;
+        selectedBeetle = teamBeetles[nextIndex];
+      }
     }
 
-    this.activeBeetle = teamBeetles[beetleIndex];
+    this.activeBeetle = selectedBeetle;
 
-    console.log(`🎮 Selected beetle: ${this.activeBeetle.id} (HP: ${this.activeBeetle.hp}/${this.activeBeetle.maxHp}, Alive: ${this.activeBeetle.isAlive})`);
+    // Salva quale beetle ha giocato
+    if (this.currentTeam === 1) {
+      this.lastPlayedBeetleTeam1 = selectedBeetle.id;
+    } else {
+      this.lastPlayedBeetleTeam2 = selectedBeetle.id;
+    }
 
-    // Verifica che sia ancora vivo (doppio controllo)
+    console.log(`🎮 Selected: ${this.activeBeetle.id} (HP: ${this.activeBeetle.hp}/${this.activeBeetle.maxHp})`);
+
+    // Verifica che sia ancora vivo (doppio controllo di sicurezza)
     if (!this.activeBeetle.isAlive) {
-      console.error('⚠️ CRITICAL: Selected a DEAD beetle! This should not happen!');
-      console.error(`Team ${this.currentTeam} alive beetles:`, teamBeetles.map(b => `${b.id}(HP:${b.hp})`).join(', '));
-      // Non chiamare endTurn() per evitare loop infiniti
-      // Invece termina il gioco se succede questo
+      console.error('⚠️ CRITICAL BUG: Selected a DEAD beetle!');
       this.endGame();
       return;
     }
@@ -438,6 +455,21 @@ export class GameScene extends Phaser.Scene {
 
     this.gamePhase = 'animating';
 
+    // PRIMA controlla se qualcuno ha vinto (PRIMA di cambiare team!)
+    const team1Alive = this.beetles.filter(b => b.team === 1 && b.isAlive).length;
+    const team2Alive = this.beetles.filter(b => b.team === 2 && b.isAlive).length;
+
+    console.log(`📊 Alive: Team1=${team1Alive}, Team2=${team2Alive}`);
+
+    if (team1Alive === 0 || team2Alive === 0) {
+      console.log('🏁 GAME OVER! Starting end game sequence...');
+      // Aspetta un attimo per far vedere l'ultimo danno
+      this.time.delayedCall(1500, () => {
+        this.endGame();
+      });
+      return;
+    }
+
     // Passa al prossimo team
     this.currentTeam = this.currentTeam === 1 ? 2 : 1;
 
@@ -446,19 +478,7 @@ export class GameScene extends Phaser.Scene {
       this.currentTurn++;
     }
 
-    // Controlla vittoria
-    const team1Alive = this.beetles.filter(b => b.team === 1 && b.isAlive).length;
-    const team2Alive = this.beetles.filter(b => b.team === 2 && b.isAlive).length;
-
-    console.log(`📊 Alive count: Team 1 = ${team1Alive}, Team 2 = ${team2Alive}`);
-
-    if (team1Alive === 0 || team2Alive === 0) {
-      console.log('🏁 Game Over condition met!');
-      this.endGame();
-      return;
-    }
-
-    console.log(`⏭️ Next turn: Team ${this.currentTeam}`);
+    console.log(`⏭️ Next: Team ${this.currentTeam}`);
 
     // Prossimo turno dopo un delay
     this.time.delayedCall(1000, () => {
