@@ -226,10 +226,17 @@ export class GameScene extends Phaser.Scene {
 
     this.activeBeetle = teamBeetles[0];
 
+    // FIX: Verifica che lo scarabeo sia ancora vivo
+    if (!this.activeBeetle.isAlive) {
+      console.warn('⚠️ Selected beetle is dead, skipping turn');
+      this.endTurn();
+      return;
+    }
+
     // Inizia la fase di mira
     this.aimController.startAiming(
       this.activeBeetle.x,
-      this.activeBeetle.y,
+      this.activeBeetle.y - this.activeBeetle.height,
       this.activeBeetle.flipped
     );
 
@@ -248,9 +255,13 @@ export class GameScene extends Phaser.Scene {
     const rng = new DeterministicRandom(this.turnSeed);
     const maxVelocity = 600; // pixels/s
 
+    // FIX: Spara da sopra lo scarabeo, non dai piedi
+    const startX = this.activeBeetle.x;
+    const startY = this.activeBeetle.y - this.activeBeetle.height;
+
     const result = Physics.simulateShot(
-      this.activeBeetle.x,
-      this.activeBeetle.y,
+      startX,
+      startY,
       shotData.angle,
       shotData.power,
       maxVelocity,
@@ -517,7 +528,34 @@ export class GameScene extends Phaser.Scene {
       this.turnTimeLeft = Math.max(0, 10000 - elapsed);
 
       if (this.turnTimeLeft === 0) {
-        // Tempo scaduto - passa il turno
+        // Tempo scaduto - penalità 25% HP
+        const penalty = Math.ceil(this.activeBeetle.maxHp * 0.25);
+        this.activeBeetle.takeDamage(penalty);
+        this.activeBeetle.updateSprite();
+
+        // Mostra penalità
+        const penaltyText = this.add.text(
+          this.activeBeetle.x,
+          this.activeBeetle.y - 60,
+          `⏱️ -${penalty} HP (Timeout!)`,
+          {
+            fontSize: '18px',
+            fill: '#ffaa00',
+            fontStyle: 'bold'
+          }
+        );
+        penaltyText.setOrigin(0.5);
+
+        this.tweens.add({
+          targets: penaltyText,
+          y: this.activeBeetle.y - 100,
+          alpha: 0,
+          duration: 1500,
+          onComplete: () => penaltyText.destroy()
+        });
+
+        console.log(`⏱️ Timeout! ${this.activeBeetle.id} loses ${penalty} HP`);
+
         this.aimController.stopAiming();
         this.endTurn();
       }
