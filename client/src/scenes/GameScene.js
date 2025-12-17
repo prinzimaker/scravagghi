@@ -147,6 +147,7 @@ export class GameScene extends Phaser.Scene {
   renderTerrain() {
     // Crea texture per il terreno
     const graphics = this.add.graphics();
+    graphics.setDepth(0); // Terreno in fondo
 
     // Disegna il terreno pixel per pixel
     for (let x = 0; x < this.gameWidth; x++) {
@@ -366,6 +367,7 @@ export class GameScene extends Phaser.Scene {
       4,
       0xffff00
     );
+    projectile.setDepth(5); // Sopra terreno, visibile durante volo
 
     let currentPoint = 0;
     const animSpeed = 0.9; // Punti per frame (ridotto al 30% per animazione più lenta)
@@ -414,6 +416,7 @@ export class GameScene extends Phaser.Scene {
       0xff6600,
       0.7
     );
+    explosion.setDepth(1); // Sopra terreno ma sotto i giocatori
 
     this.tweens.add({
       targets: explosion,
@@ -475,6 +478,7 @@ export class GameScene extends Phaser.Scene {
         }
       );
       damageText.setOrigin(0.5);
+      damageText.setDepth(20); // Sopra tutto per essere sempre visibile
 
       this.tweens.add({
         targets: damageText,

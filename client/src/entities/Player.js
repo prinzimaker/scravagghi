@@ -87,6 +87,7 @@ export class Player {
       color
     );
     this.sprite.setOrigin(0.5, 1);
+    this.sprite.setDepth(10); // Giocatori sempre davanti a tutto
 
     // Barra HP
     const hpBarHeight = 6;
@@ -101,6 +102,7 @@ export class Player {
     );
     this.hpBarBg.setOrigin(0, 0);
     this.hpBarBg.setStrokeStyle(1, 0xffffff, 0.5);
+    this.hpBarBg.setDepth(11); // Barra HP sopra i giocatori
 
     this.hpBar = scene.add.rectangle(
       this.position.x - this.width / 2,
@@ -110,6 +112,7 @@ export class Player {
       0x00ff00
     );
     this.hpBar.setOrigin(0, 0);
+    this.hpBar.setDepth(11); // Barra HP sopra i giocatori
 
     // Nome del giocatore (opzionale)
     this.nameText = scene.add.text(
@@ -125,6 +128,7 @@ export class Player {
     );
     this.nameText.setOrigin(0.5);
     this.nameText.setVisible(false); // Nascosto di default
+    this.nameText.setDepth(12); // Nome sopra tutto
   }
 
   /**
