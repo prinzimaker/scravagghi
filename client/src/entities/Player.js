@@ -21,6 +21,7 @@ export class Player {
 
     // Stato
     this.isActive = false; // true quando è il suo turno
+    this.hasFadedOut = false; // true quando l'animazione di fade è stata avviata
 
     // Dimensioni
     this.width = 32;
@@ -170,12 +171,35 @@ export class Player {
       this.nameText.setVisible(this.isActive);
     }
 
-    // Se morto, trasparente
+    // Se morto, nascondi UI (il fade out è gestito dal metodo fadeOut)
     if (this.isDead()) {
-      if (this.sprite) this.sprite.setAlpha(0.3);
       if (this.hpBar) this.hpBar.setVisible(false);
       if (this.hpBarBg) this.hpBarBg.setVisible(false);
       if (this.nameText) this.nameText.setVisible(false);
+    }
+  }
+
+  /**
+   * Avvia animazione di fade out quando il player muore
+   */
+  fadeOut(scene) {
+    if (this.hasFadedOut || !this.isDead()) return;
+
+    this.hasFadedOut = true;
+
+    // Nascondi subito le UI
+    if (this.hpBar) this.hpBar.setVisible(false);
+    if (this.hpBarBg) this.hpBarBg.setVisible(false);
+    if (this.nameText) this.nameText.setVisible(false);
+
+    // Anima il fade dello sprite
+    if (this.sprite) {
+      scene.tweens.add({
+        targets: this.sprite,
+        alpha: 0,
+        duration: 1500,
+        ease: 'Power2'
+      });
     }
   }
 

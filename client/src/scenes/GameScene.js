@@ -463,13 +463,50 @@ export class GameScene extends Phaser.Scene {
     // Mostra danni
     damages.forEach(({ beetle, damage, distance, percent }) => {
       const player = beetle.player; // Recupera il player originale
+      const wasAlive = player.isAlive();
       player.updateSprite();
 
       // Log danno
       if (player.isDead()) {
         console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
+
+        // Avvia fade out animato
+        if (wasAlive) {
+          player.fadeOut(this);
+        }
       } else {
         console.log(`💔 ${player.name} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${player.health}/${player.maxHealth}`);
+      }
+
+      // KNOCKBACK: spostamento d'aria proporzionale al danno
+      if (player.isAlive()) {
+        // Calcola direzione dall'impatto al player
+        const dx = player.position.x - impactPoint.x;
+        const dy = player.position.y - impactPoint.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > 0) {
+          // Normalizza direzione
+          const dirX = dx / dist;
+          const dirY = dy / dist;
+
+          // Forza knockback: proporzionale al percent del danno (max ~50px per 100% danno)
+          const knockbackForce = (percent / 100) * 50;
+
+          // Calcola nuova posizione
+          const newX = Math.max(20, Math.min(this.gameWidth - 20, player.position.x + dirX * knockbackForce));
+          const newY = Math.max(player.height, Math.min(this.gameHeight, player.position.y + dirY * knockbackForce));
+
+          // Anima lo spostamento
+          this.tweens.add({
+            targets: player.position,
+            x: newX,
+            y: newY,
+            duration: 300,
+            ease: 'Cubic.easeOut',
+            onUpdate: () => player.updateSprite()
+          });
+        }
       }
 
       // Testo danno
@@ -764,6 +801,44 @@ export class GameScene extends Phaser.Scene {
 
       this.updateUI();
     }
+
+    // Controllo morte per caduta nei burroni
+    this.players.forEach(player => {
+      if (player.isAlive() && player.position.y > this.gameHeight + 50) {
+        console.log(`💀 ${player.name} è caduto in un burrone!`);
+
+        // Uccidi il player
+        player.takeDamage(9999);
+        player.updateSprite();
+
+        // Avvia fade out animato
+        player.fadeOut(this);
+
+        // Mostra messaggio di morte
+        const fallText = this.add.text(
+          player.position.x,
+          this.gameHeight - 50,
+          `${player.name} 💀 CADUTO!`,
+          {
+            fontSize: '20px',
+            fill: '#ff0000',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 3
+          }
+        );
+        fallText.setOrigin(0.5);
+        fallText.setDepth(20);
+
+        this.tweens.add({
+          targets: fallText,
+          y: this.gameHeight - 100,
+          alpha: 0,
+          duration: 2000,
+          onComplete: () => fallText.destroy()
+        });
+      }
+    });
 
     // Aggiorna debug info
     this.updateDebugInfo();
