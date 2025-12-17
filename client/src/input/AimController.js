@@ -174,6 +174,12 @@ export class AimController {
     if (this.isCharging) {
       const chargeTime = Date.now() - this.chargeStartTime;
       this.power = Math.min(1, chargeTime / this.maxChargeTime);
+
+      // FIX: Auto-fire quando raggiunge 100%
+      if (this.power >= 1.0) {
+        console.log('💯 Auto-firing at 100% power!');
+        this.releaseShot();
+      }
     }
 
     // Aggiorna grafica
