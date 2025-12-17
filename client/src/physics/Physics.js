@@ -93,30 +93,32 @@ export class Physics {
   }
 
   /**
-   * Calcola il danno in base alla distanza dall'esplosione
-   * @param {number} distance - Distanza dal centro dell'esplosione
-   * @param {number} explosionRadius - Raggio dell'esplosione
-   * @param {number} maxDamage - Danno massimo al centro
-   * @returns {number} Danno calcolato
+   * Calcola la percentuale di danno in base alla distanza dall'esplosione
+   * Curva personalizzata: 0px=100%, 20px=60%, 40px=20%
+   * @param {number} distance - Distanza dal centro dell'esplosione in pixel
+   * @returns {number} Percentuale di danno [0-100]
    */
-  static calculateExplosionDamage(distance, explosionRadius, maxDamage) {
-    if (distance >= explosionRadius) return 0;
+  static calculateDamagePercent(distance) {
+    // Colpo diretto (entro 5 pixel) = 100%
+    if (distance <= 5) return 100;
 
-    // Danno diminuisce linearmente con la distanza
-    const factor = 1 - (distance / explosionRadius);
-    return Math.floor(maxDamage * factor);
+    // Curva lineare: damagePercent = 100 - (distance * 2)
+    // 0px: 100%, 20px: 60%, 40px: 20%
+    const damagePercent = Math.max(0, 100 - (distance * 2));
+
+    return damagePercent;
   }
 
   /**
    * Applica danni da esplosione a tutti i beetle nell'area
+   * Il danno è calcolato come percentuale del HP massimo del beetle
    * @param {number} centerX - Centro X esplosione
    * @param {number} centerY - Centro Y esplosione
-   * @param {number} radius - Raggio esplosione
-   * @param {number} maxDamage - Danno massimo
+   * @param {number} radius - Raggio esplosione (40 pixel)
    * @param {Array<Beetle>} beetles - Array di scarabei
-   * @returns {Array} Array di danni applicati {beetle, damage}
+   * @returns {Array} Array di danni applicati {beetle, damage, distance, percent}
    */
-  static applyExplosionDamage(centerX, centerY, radius, maxDamage, beetles) {
+  static applyExplosionDamage(centerX, centerY, radius, beetles) {
     const damages = [];
 
     for (const beetle of beetles) {
@@ -127,10 +129,15 @@ export class Physics {
       const distance = Math.sqrt(dx * dx + dy * dy);
 
       if (distance < radius) {
-        const damage = Physics.calculateExplosionDamage(distance, radius, maxDamage);
+        // Calcola percentuale di danno in base alla distanza
+        const damagePercent = Physics.calculateDamagePercent(distance);
+
+        // Applica la percentuale all'HP massimo del beetle
+        const damage = Math.ceil((beetle.maxHp * damagePercent) / 100);
+
         if (damage > 0) {
           beetle.takeDamage(damage);
-          damages.push({ beetle, damage, distance });
+          damages.push({ beetle, damage, distance, percent: damagePercent });
         }
       }
     }

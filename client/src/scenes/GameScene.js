@@ -332,9 +332,9 @@ export class GameScene extends Phaser.Scene {
   handleImpact(result) {
     const { impactPoint, hitBeetle } = result;
 
-    // Effetto esplosione (raggio aumentato per kill garantito)
+    // Effetto esplosione
+    // Raggio 40px: 0-5px=100%, 20px=60%, 40px=20% del max HP
     const explosionRadius = 40;
-    const maxDamage = 100; // Danno massimo aumentato per uccidere nel raggio
 
     // Grafica esplosione
     const explosion = this.add.circle(
@@ -357,25 +357,31 @@ export class GameScene extends Phaser.Scene {
     this.terrain.excavate(impactPoint.x, impactPoint.y, explosionRadius);
     this.updateTerrainGraphics(impactPoint.x, impactPoint.y, explosionRadius);
 
-    // Applica danni
+    // Applica danni (percentuale in base alla distanza)
     const damages = Physics.applyExplosionDamage(
       impactPoint.x,
       impactPoint.y,
       explosionRadius,
-      maxDamage,
       this.beetles
     );
 
     // Mostra danni
-    damages.forEach(({ beetle, damage }) => {
+    damages.forEach(({ beetle, damage, distance, percent }) => {
       beetle.updateSprite();
 
-      // Testo danno
-      const damageText = this.add.text(beetle.x, beetle.y - 40, `-${damage}`, {
-        fontSize: '20px',
-        fill: '#ff0000',
-        fontStyle: 'bold'
-      });
+      // Testo danno con percentuale
+      const damageText = this.add.text(
+        beetle.x,
+        beetle.y - 40,
+        `-${damage} HP (${Math.round(percent)}%)`,
+        {
+          fontSize: '18px',
+          fill: '#ff0000',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        }
+      );
       damageText.setOrigin(0.5);
 
       this.tweens.add({
@@ -386,7 +392,7 @@ export class GameScene extends Phaser.Scene {
         onComplete: () => damageText.destroy()
       });
 
-      console.log(`💔 ${beetle.id} took ${damage} damage (HP: ${beetle.hp})`);
+      console.log(`💔 ${beetle.id} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${beetle.hp}`);
     });
 
     // Applica gravità agli scarabei
