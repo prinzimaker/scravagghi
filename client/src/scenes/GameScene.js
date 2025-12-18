@@ -53,7 +53,7 @@ export class GameScene extends Phaser.Scene {
     this.currentTeamId = 0; // 0 o 1
     this.team0CurrentElement = 1; // Element corrente per team 0
     this.team1CurrentElement = 1; // Element corrente per team 1
-    this.turnTimeLeft = 10000;
+    this.turnTimeLeft = 15000;
     this.gamePhase = 'aiming';
     this.isTurnTransitioning = false; // Previene chiamate multiple a endTurn()
 
@@ -680,7 +680,7 @@ export class GameScene extends Phaser.Scene {
     const currentElement = this.currentTeamId === 0 ? this.team0CurrentElement : this.team1CurrentElement;
 
     this.gamePhase = 'aiming';
-    this.turnTimeLeft = 10000;
+    this.turnTimeLeft = 15000;
     this.turnStartTime = Date.now();
     this.timerPaused = false;
 
@@ -1709,7 +1709,7 @@ export class GameScene extends Phaser.Scene {
     const startY = this.activePlayer.position.y;
 
     // Direzione del salto basata sulla direzione dello scarafaggio
-    const direction = this.activePlayer.container.scaleX; // 1 = destra, -1 = sinistra
+    const direction = this.activePlayer.container.scaleX > 0 ? 1 : -1; // Normalizza a 1 o -1
     const jumpDistanceX = 50 * direction;
     const jumpHeight = 30;
 
@@ -2016,10 +2016,10 @@ export class GameScene extends Phaser.Scene {
         if (this.timerPaused) {
           // Riprendi da dove eri rimasto
           this.timerPaused = false;
-          this.turnStartTime = Date.now() - (10000 - this.pausedTimeLeft);
+          this.turnStartTime = Date.now() - (15000 - this.pausedTimeLeft);
         }
         const elapsed = Date.now() - this.turnStartTime;
-        this.turnTimeLeft = Math.max(0, 10000 - elapsed);
+        this.turnTimeLeft = Math.max(0, 15000 - elapsed);
       }
 
       if (this.turnTimeLeft === 0 && !this.timerPaused) {
