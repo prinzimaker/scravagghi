@@ -430,6 +430,10 @@ export class GameScene extends Phaser.Scene {
 
     console.log(`🧨 Dynamite placed at (${x}, ${y})`);
 
+    // Entra in fase "fuga" - il giocatore può muoversi ma non sparare
+    this.gamePhase = 'escaping';
+    this.aimController.stopAiming();
+
     // Crea sprite dinamite
     const dynamite = this.add.text(x, y - 20, '🧨', {
       fontSize: '24px'
@@ -447,6 +451,9 @@ export class GameScene extends Phaser.Scene {
     countdownText.setOrigin(0.5);
     countdownText.setDepth(15);
 
+    // Mostra istruzioni di fuga
+    this.showEscapeMessage('SCAPPA! ← → per muoverti');
+
     // Countdown timer
     const countdownTimer = this.time.addEvent({
       delay: 1000,
@@ -458,16 +465,17 @@ export class GameScene extends Phaser.Scene {
           countdownTimer.remove();
           dynamite.destroy();
           countdownText.destroy();
+          this.hideEscapeMessage();
 
           // Esplosione!
           this.handleDelayedExplosion(x, y, weaponDef);
+
+          // ORA termina il turno
+          this.endTurn();
         }
       },
       loop: true
     });
-
-    // Termina il turno immediatamente (la dinamite esploderà dopo)
-    this.endTurn();
   }
 
   /**
@@ -535,6 +543,12 @@ export class GameScene extends Phaser.Scene {
   animateProjectile(result) {
     const weaponDef = result.weaponDef || WeaponDefinitions[WeaponType.POOP_BALL];
 
+    // Per granate con esplosione ritardata, il timer parte dal lancio
+    const isTimedGrenade = weaponDef.delayedExplosion && !weaponDef.explodeOnImpact;
+    let grenadeExploded = false;
+    let grenadeTimer = null;
+    let countdownText = null;
+
     // Crea il proiettile con l'icona dell'arma
     let projectile;
     if (weaponDef.icon) {
@@ -555,6 +569,40 @@ export class GameScene extends Phaser.Scene {
     }
     projectile.setDepth(5); // Sopra terreno, visibile durante volo
 
+    // Per granate: avvia timer dal lancio e entra in fase fuga
+    if (isTimedGrenade) {
+      this.gamePhase = 'escaping';
+      this.aimController.stopAiming();
+      this.showEscapeMessage('SCAPPA! ← → per muoverti');
+
+      let countdown = Math.ceil(weaponDef.explosionDelay / 1000);
+
+      // Countdown visivo che segue la granata
+      countdownText = this.add.text(0, 0, `${countdown}`, {
+        fontSize: '16px',
+        fill: '#ff0000',
+        fontStyle: 'bold'
+      });
+      countdownText.setOrigin(0.5);
+      countdownText.setDepth(15);
+
+      // Timer che parte dal lancio
+      grenadeTimer = this.time.addEvent({
+        delay: 1000,
+        callback: () => {
+          countdown--;
+          if (countdownText) {
+            countdownText.setText(`${countdown}`);
+          }
+
+          if (countdown <= 0) {
+            grenadeExploded = true;
+          }
+        },
+        loop: true
+      });
+    }
+
     let currentPoint = 0;
     const animSpeed = 0.9; // Punti per frame
 
@@ -564,16 +612,41 @@ export class GameScene extends Phaser.Scene {
       callback: () => {
         currentPoint += animSpeed;
 
+        // Aggiorna posizione countdown se esiste
+        if (countdownText && projectile) {
+          countdownText.setPosition(projectile.x, projectile.y - 25);
+        }
+
+        // Se la granata è esplosa (timer scaduto), esplodi dove si trova
+        if (grenadeExploded) {
+          const explosionX = projectile.x;
+          const explosionY = projectile.y;
+
+          projectile.destroy();
+          timer.remove();
+          if (grenadeTimer) grenadeTimer.remove();
+          if (countdownText) countdownText.destroy();
+          this.hideEscapeMessage();
+
+          // Esplosione!
+          this.handleDelayedExplosion(explosionX, explosionY, weaponDef);
+          this.endTurn();
+          return;
+        }
+
         if (currentPoint >= result.trajectory.length) {
           // Fine traiettoria
           projectile.destroy();
           timer.remove();
 
           if (result.impactPoint) {
-            // Gestisci esplosione ritardata per granate
-            if (weaponDef.delayedExplosion && !weaponDef.explodeOnImpact) {
-              this.handleGrenadeStop(result.impactPoint.x, result.impactPoint.y, weaponDef);
+            // Per granate con timer, aspetta che il timer finisca
+            if (isTimedGrenade && !grenadeExploded) {
+              // La granata si è fermata ma il timer non è ancora scaduto
+              // Crea sprite granata ferma e aspetta
+              this.handleGrenadeWaiting(result.impactPoint.x, result.impactPoint.y, weaponDef, grenadeTimer, countdownText);
             } else {
+              if (countdownText) countdownText.destroy();
               this.handleImpact(result);
             }
           } else {
@@ -582,6 +655,9 @@ export class GameScene extends Phaser.Scene {
             if (this.soundManager) {
               this.soundManager.onOffTarget();
             }
+            if (grenadeTimer) grenadeTimer.remove();
+            if (countdownText) countdownText.destroy();
+            this.hideEscapeMessage();
             this.endTurn();
           }
 
@@ -596,10 +672,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Gestisce la granata che si ferma (esplosione ritardata)
+   * Gestisce la granata che si è fermata ma deve ancora esplodere
    */
-  handleGrenadeStop(x, y, weaponDef) {
-    console.log(`💣 Grenade stopped at (${x}, ${y}), exploding in ${weaponDef.explosionDelay / 1000}s`);
+  handleGrenadeWaiting(x, y, weaponDef, existingTimer, existingCountdown) {
+    console.log(`💣 Grenade waiting at (${x}, ${y})`);
 
     // Crea sprite granata ferma
     const grenade = this.add.text(x, y, weaponDef.icon, {
@@ -608,37 +684,32 @@ export class GameScene extends Phaser.Scene {
     grenade.setOrigin(0.5);
     grenade.setDepth(15);
 
-    // Timer countdown visivo
-    let countdown = Math.ceil(weaponDef.explosionDelay / 1000);
-    const countdownText = this.add.text(x, y - 25, `${countdown}`, {
-      fontSize: '16px',
-      fill: '#ff0000',
-      fontStyle: 'bold'
-    });
-    countdownText.setOrigin(0.5);
-    countdownText.setDepth(15);
+    // Sposta il countdown sulla posizione finale
+    if (existingCountdown) {
+      existingCountdown.setPosition(x, y - 25);
+    }
 
-    // Termina il turno
-    this.endTurn();
+    // Quando il timer esistente finisce, esplodi
+    // Modifica il callback del timer esistente
+    existingTimer.callback = () => {
+      const currentText = existingCountdown ? parseInt(existingCountdown.text) : 0;
+      const newCount = currentText - 1;
 
-    // Countdown timer
-    const countdownTimer = this.time.addEvent({
-      delay: 1000,
-      callback: () => {
-        countdown--;
-        countdownText.setText(`${countdown}`);
+      if (existingCountdown) {
+        existingCountdown.setText(`${newCount}`);
+      }
 
-        if (countdown <= 0) {
-          countdownTimer.remove();
-          grenade.destroy();
-          countdownText.destroy();
+      if (newCount <= 0) {
+        existingTimer.remove();
+        grenade.destroy();
+        if (existingCountdown) existingCountdown.destroy();
+        this.hideEscapeMessage();
 
-          // Esplosione!
-          this.handleDelayedExplosion(x, y, weaponDef);
-        }
-      },
-      loop: true
-    });
+        // Esplosione!
+        this.handleDelayedExplosion(x, y, weaponDef);
+        this.endTurn();
+      }
+    };
   }
 
   /**
@@ -978,6 +1049,49 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Mostra messaggio di fuga
+   */
+  showEscapeMessage(text) {
+    if (this.escapeMessage) {
+      this.escapeMessage.destroy();
+    }
+
+    this.escapeMessage = this.add.text(
+      this.gameWidth / 2,
+      80,
+      text,
+      {
+        fontSize: '24px',
+        fill: '#ff0000',
+        fontStyle: 'bold',
+        backgroundColor: '#000000cc',
+        padding: { x: 20, y: 10 }
+      }
+    );
+    this.escapeMessage.setOrigin(0.5);
+    this.escapeMessage.setDepth(50);
+
+    // Animazione lampeggiante
+    this.tweens.add({
+      targets: this.escapeMessage,
+      alpha: 0.5,
+      duration: 300,
+      yoyo: true,
+      repeat: -1
+    });
+  }
+
+  /**
+   * Nasconde messaggio di fuga
+   */
+  hideEscapeMessage() {
+    if (this.escapeMessage) {
+      this.escapeMessage.destroy();
+      this.escapeMessage = null;
+    }
+  }
+
+  /**
    * Apre il selettore armi
    */
   openWeaponSelector() {
@@ -1045,8 +1159,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Movimento laterale del player attivo con LEFT/RIGHT
-    if (this.gamePhase === 'aiming' && this.activePlayer && this.aimController.cursors && !this.isSelectingWeapon) {
-      const moveSpeed = 80;
+    // Permesso sia in fase 'aiming' che in fase 'escaping' (fuga da esplosione)
+    const canMove = (this.gamePhase === 'aiming' || this.gamePhase === 'escaping') &&
+                    this.activePlayer && this.aimController.cursors && !this.isSelectingWeapon;
+
+    if (canMove) {
+      // Velocità maggiore durante la fuga!
+      const moveSpeed = this.gamePhase === 'escaping' ? 150 : 80;
       const deltaSeconds = delta / 1000;
 
       if (this.aimController.cursors.left.isDown) {
@@ -1055,8 +1174,10 @@ export class GameScene extends Phaser.Scene {
           const groundY = this.terrain.getGroundY(Math.floor(newX));
           this.activePlayer.moveTo(newX, groundY);
           this.activePlayer.updateSprite();
-          this.aimController.shooterX = newX;
-          this.aimController.shooterY = groundY - this.activePlayer.height;
+          if (this.gamePhase === 'aiming') {
+            this.aimController.shooterX = newX;
+            this.aimController.shooterY = groundY - this.activePlayer.height;
+          }
         }
       } else if (this.aimController.cursors.right.isDown) {
         const newX = this.activePlayer.position.x + (moveSpeed * deltaSeconds);
@@ -1064,8 +1185,10 @@ export class GameScene extends Phaser.Scene {
           const groundY = this.terrain.getGroundY(Math.floor(newX));
           this.activePlayer.moveTo(newX, groundY);
           this.activePlayer.updateSprite();
-          this.aimController.shooterX = newX;
-          this.aimController.shooterY = groundY - this.activePlayer.height;
+          if (this.gamePhase === 'aiming') {
+            this.aimController.shooterX = newX;
+            this.aimController.shooterY = groundY - this.activePlayer.height;
+          }
         }
       }
     }

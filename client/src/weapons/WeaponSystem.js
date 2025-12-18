@@ -280,12 +280,12 @@ export class WeaponSelector {
 
     weapons.forEach(([type, def], index) => {
       const x = startX + index * slotWidth;
-      const slot = this.createWeaponSlot(type, def, x, 5);
+      const slot = this.createWeaponSlot(type, def, x, 5, index);
       this.weaponSlots.push(slot);
     });
 
     // Istruzioni
-    const instructions = this.scene.add.text(0, barHeight/2 - 10, '← → per scegliere, INVIO per confermare, ESC per annullare', {
+    const instructions = this.scene.add.text(0, barHeight/2 - 10, '← → o mouse per scegliere, INVIO o click per confermare, ESC per annullare', {
       fontSize: '10px',
       fill: '#aaaaaa'
     });
@@ -299,12 +299,31 @@ export class WeaponSelector {
   /**
    * Crea uno slot per un'arma
    */
-  createWeaponSlot(type, def, x, y) {
+  createWeaponSlot(type, def, x, y, index) {
     const slotContainer = this.scene.add.container(x, y);
 
-    // Sfondo slot
+    // Sfondo slot (interattivo per click)
     const slotBg = this.scene.add.rectangle(0, 0, 60, 50, 0x333333, 0.8);
     slotBg.setStrokeStyle(2, 0x666666);
+    slotBg.setInteractive({ useHandCursor: true });
+
+    // Click handler per selezionare e confermare
+    slotBg.on('pointerdown', () => {
+      if (this.inputEnabled) {
+        this.selectedIndex = index;
+        this.updateSelection();
+        this.confirmSelection();
+      }
+    });
+
+    // Hover effect
+    slotBg.on('pointerover', () => {
+      if (this.inputEnabled) {
+        this.selectedIndex = index;
+        this.updateSelection();
+      }
+    });
+
     slotContainer.add(slotBg);
 
     // Icona arma
@@ -331,7 +350,8 @@ export class WeaponSelector {
       container: slotContainer,
       bg: slotBg,
       icon,
-      ammoText
+      ammoText,
+      index
     };
   }
 
