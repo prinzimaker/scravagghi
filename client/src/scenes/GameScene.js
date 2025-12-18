@@ -237,17 +237,16 @@ export class GameScene extends Phaser.Scene {
    * Crea UI del gioco
    */
   createUI() {
-    // TITOLO PRINCIPALE al centro
-    this.titleText = this.add.text(this.gameWidth / 2, this.gameHeight / 2 - 50, 'SCARAVAGGHI', {
-      fontSize: '72px',
+    // TITOLO PRINCIPALE in alto al centro
+    this.titleText = this.add.text(this.gameWidth / 2, 45, 'SCARAVAGGHI', {
+      fontSize: '48px',
       fill: '#ffcc00',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 6
+      strokeThickness: 4
     });
     this.titleText.setOrigin(0.5);
-    this.titleText.setAlpha(0.3); // Semi-trasparente per non disturbare il gioco
-    this.titleText.setDepth(0); // Dietro tutto
+    this.titleText.setDepth(100); // Sopra tutto
 
     // Pannello turno (in alto a sinistra)
     this.turnText = this.add.text(20, 10, 'Turno 1 - Team Verde', {
@@ -691,6 +690,11 @@ export class GameScene extends Phaser.Scene {
   handleGrenadeWaiting(x, y, weaponDef, existingTimer, existingCountdown) {
     console.log(`💣 Grenade waiting at (${x}, ${y})`);
 
+    // Ferma il timer esistente
+    if (existingTimer) {
+      existingTimer.remove();
+    }
+
     // Crea sprite granata ferma
     const grenade = this.add.text(x, y, weaponDef.icon, {
       fontSize: '20px'
@@ -698,32 +702,42 @@ export class GameScene extends Phaser.Scene {
     grenade.setOrigin(0.5);
     grenade.setDepth(15);
 
-    // Sposta il countdown sulla posizione finale
+    // Prendi il countdown corrente
+    let countdown = existingCountdown ? parseInt(existingCountdown.text) : 1;
+
+    // Distruggi il vecchio countdown e creane uno nuovo sulla granata
     if (existingCountdown) {
-      existingCountdown.setPosition(x, y - 25);
+      existingCountdown.destroy();
     }
 
-    // Quando il timer esistente finisce, esplodi
-    // Modifica il callback del timer esistente
-    existingTimer.callback = () => {
-      const currentText = existingCountdown ? parseInt(existingCountdown.text) : 0;
-      const newCount = currentText - 1;
+    const countdownText = this.add.text(x, y - 25, `${countdown}`, {
+      fontSize: '16px',
+      fill: '#ff0000',
+      fontStyle: 'bold'
+    });
+    countdownText.setOrigin(0.5);
+    countdownText.setDepth(15);
 
-      if (existingCountdown) {
-        existingCountdown.setText(`${newCount}`);
-      }
+    // Nuovo timer per il countdown rimanente
+    const waitTimer = this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        countdown--;
+        countdownText.setText(`${countdown}`);
 
-      if (newCount <= 0) {
-        existingTimer.remove();
-        grenade.destroy();
-        if (existingCountdown) existingCountdown.destroy();
-        this.hideEscapeMessage();
+        if (countdown <= 0) {
+          waitTimer.remove();
+          grenade.destroy();
+          countdownText.destroy();
+          this.hideEscapeMessage();
 
-        // Esplosione!
-        this.handleDelayedExplosion(x, y, weaponDef);
-        this.endTurn();
-      }
-    };
+          // Esplosione!
+          this.handleDelayedExplosion(x, y, weaponDef);
+          this.endTurn();
+        }
+      },
+      loop: true
+    });
   }
 
   /**
