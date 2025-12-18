@@ -12,6 +12,20 @@ export const WeaponType = {
 };
 
 /**
+ * Tipi di contenuto delle casse di armi
+ */
+export const CrateContents = [
+  { type: WeaponType.GRENADE, amount: 2, icon: '💣', name: '+2 Bombe' },
+  { type: WeaponType.GRENADE, amount: 1, icon: '💣', name: '+1 Bomba' },
+  { type: WeaponType.DYNAMITE, amount: 2, icon: '🧨', name: '+2 Dinamite' },
+  { type: WeaponType.DYNAMITE, amount: 1, icon: '🧨', name: '+1 Dinamite' },
+  { type: WeaponType.BAZOOKA, amount: 1, icon: '🚀', name: '+1 Razzo' },
+  { type: WeaponType.BAZOOKA, amount: 2, icon: '🚀', name: '+2 Razzi' },
+  { type: WeaponType.PISTOL, amount: 5, icon: '🔫', name: '+5 Proiettili' },
+  { type: WeaponType.PISTOL, amount: 10, icon: '🔫', name: '+10 Proiettili' }
+];
+
+/**
  * Definizioni delle armi con le loro caratteristiche
  */
 export const WeaponDefinitions = {
@@ -161,11 +175,19 @@ export class WeaponInventory {
 
   /**
    * Usa una munizione
+   * Se le munizioni finiscono, torna automaticamente alla cacca
    */
   useAmmo(weaponType) {
     if (this.ammo[weaponType] === Infinity) return true;
     if (this.ammo[weaponType] > 0) {
       this.ammo[weaponType]--;
+
+      // Se le munizioni sono finite, torna alla cacca
+      if (this.ammo[weaponType] <= 0 && weaponType !== WeaponType.POOP_BALL) {
+        console.log(`🔫 ${WeaponDefinitions[weaponType].name} esaurita! Torno alla cacca`);
+        this.currentWeapon = WeaponType.POOP_BALL;
+      }
+
       return true;
     }
     return false;

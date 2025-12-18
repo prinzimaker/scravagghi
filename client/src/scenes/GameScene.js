@@ -4,7 +4,7 @@ import { Physics } from '../physics/Physics.js';
 import { AimController } from '../input/AimController.js';
 import { DeterministicRandom } from '../utils/DeterministicRandom.js';
 import { SoundManager } from '../managers/SoundManager.js';
-import { WeaponSelector, WeaponDefinitions, WeaponType } from '../weapons/WeaponSystem.js';
+import { WeaponSelector, WeaponDefinitions, WeaponType, CrateContents } from '../weapons/WeaponSystem.js';
 
 /**
  * Scena principale del gioco
@@ -63,6 +63,9 @@ export class GameScene extends Phaser.Scene {
 
     // Inizializza terreno
     this.initTerrain();
+
+    // Inizializza casse di armi nascoste nel terreno
+    this.initWeaponCrates();
 
     // Inizializza giocatori (nuovo sistema!)
     this.initPlayers();
@@ -145,6 +148,192 @@ export class GameScene extends Phaser.Scene {
       for (let y = Math.floor(groundY); y < this.gameHeight; y++) {
         this.terrain.setPixel(x, y, true);
       }
+    }
+  }
+
+  /**
+   * Inizializza le casse di armi nascoste nel terreno
+   */
+  initWeaponCrates() {
+    this.weaponCrates = [];
+    const rng = new DeterministicRandom(this.gameSeed + 1000);
+
+    // Genera 5-8 casse nascoste nel terreno
+    const numCrates = rng.nextInt(5, 9);
+
+    for (let i = 0; i < numCrates; i++) {
+      // Posizione X casuale (evita i bordi)
+      const x = rng.nextInt(100, this.gameWidth - 100);
+
+      // Trova la superficie del terreno in quella posizione
+      const surfaceY = this.terrain.getGroundY(x);
+
+      // La cassa è sotterrata 30-80 pixel sotto la superficie
+      const depth = rng.nextInt(30, 80);
+      const y = surfaceY + depth;
+
+      // Assicurati che sia dentro il terreno
+      if (y < this.gameHeight - 20) {
+        // Contenuto casuale della cassa
+        const contentIndex = rng.nextInt(0, CrateContents.length);
+        const content = CrateContents[contentIndex];
+
+        this.weaponCrates.push({
+          x,
+          y,
+          width: 24,
+          height: 24,
+          content,
+          revealed: false,
+          collected: false,
+          sprite: null
+        });
+      }
+    }
+
+    console.log(`📦 Generated ${this.weaponCrates.length} hidden weapon crates`);
+  }
+
+  /**
+   * Controlla se una cassa è stata rivelata (il terreno sopra è stato distrutto)
+   */
+  checkRevealedCrates() {
+    for (const crate of this.weaponCrates) {
+      if (crate.revealed || crate.collected) continue;
+
+      // Controlla se c'è terreno sopra la cassa
+      // Se non c'è terreno sopra, la cassa è rivelata
+      let terrainAbove = false;
+      for (let checkY = crate.y - crate.height; checkY >= 0; checkY -= 5) {
+        if (this.terrain.isSolid(crate.x, checkY)) {
+          terrainAbove = true;
+          break;
+        }
+      }
+
+      // Se non c'è terreno sopra, rivela la cassa
+      if (!terrainAbove) {
+        this.revealCrate(crate);
+      }
+    }
+  }
+
+  /**
+   * Rivela una cassa (crea lo sprite visibile)
+   */
+  revealCrate(crate) {
+    if (crate.revealed) return;
+
+    crate.revealed = true;
+    console.log(`📦 Crate revealed at (${crate.x}, ${crate.y}) containing ${crate.content.name}`);
+
+    // Crea sprite della cassa
+    crate.sprite = this.add.text(crate.x, crate.y, '📦', {
+      fontSize: '28px'
+    });
+    crate.sprite.setOrigin(0.5);
+    crate.sprite.setDepth(8); // Sotto i giocatori ma sopra il terreno
+
+    // Animazione di apparizione
+    crate.sprite.setScale(0);
+    this.tweens.add({
+      targets: crate.sprite,
+      scale: 1,
+      duration: 300,
+      ease: 'Back.easeOut'
+    });
+
+    // La cassa cade per gravità se non c'è terreno sotto
+    this.dropCrate(crate);
+  }
+
+  /**
+   * Fa cadere la cassa finché non tocca il terreno
+   */
+  dropCrate(crate) {
+    const groundY = this.terrain.getGroundY(crate.x);
+    if (crate.y < groundY) {
+      // Anima la caduta
+      this.tweens.add({
+        targets: crate,
+        y: groundY,
+        duration: 300,
+        ease: 'Bounce.easeOut',
+        onUpdate: () => {
+          if (crate.sprite) {
+            crate.sprite.setPosition(crate.x, crate.y);
+          }
+        }
+      });
+    }
+  }
+
+  /**
+   * Controlla se un giocatore ha raccolto una cassa
+   */
+  checkCrateCollection(player) {
+    for (const crate of this.weaponCrates) {
+      if (!crate.revealed || crate.collected) continue;
+
+      // Controlla collisione giocatore-cassa
+      const dx = Math.abs(player.position.x - crate.x);
+      const dy = Math.abs(player.position.y - crate.y);
+
+      if (dx < 20 && dy < 20) {
+        this.collectCrate(crate, player);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Raccoglie una cassa e aggiunge il contenuto all'inventario del giocatore
+   */
+  collectCrate(crate, player) {
+    crate.collected = true;
+    console.log(`📦 ${player.name} collected ${crate.content.name}!`);
+
+    // Aggiungi munizioni all'inventario
+    player.weaponInventory.addAmmo(crate.content.type, crate.content.amount);
+
+    // Mostra messaggio di raccolta
+    const pickupText = this.add.text(
+      crate.x,
+      crate.y - 20,
+      `${crate.content.icon} ${crate.content.name}`,
+      {
+        fontSize: '16px',
+        fill: '#00ff00',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 2
+      }
+    );
+    pickupText.setOrigin(0.5);
+    pickupText.setDepth(25);
+
+    // Animazione del testo
+    this.tweens.add({
+      targets: pickupText,
+      y: crate.y - 60,
+      alpha: 0,
+      duration: 1500,
+      onComplete: () => pickupText.destroy()
+    });
+
+    // Distruggi lo sprite della cassa
+    if (crate.sprite) {
+      this.tweens.add({
+        targets: crate.sprite,
+        scale: 0,
+        alpha: 0,
+        duration: 200,
+        onComplete: () => {
+          crate.sprite.destroy();
+          crate.sprite = null;
+        }
+      });
     }
   }
 
@@ -350,6 +539,9 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+
+    // Controlla se qualche cassa nascosta è stata rivelata
+    this.checkRevealedCrates();
   }
 
   /**
@@ -981,6 +1173,11 @@ export class GameScene extends Phaser.Scene {
   handleGrenadeWaiting(x, y, weaponDef, existingTimer, existingCountdown) {
     console.log(`💣 Grenade waiting at (${x}, ${y})`);
 
+    // Ferma il timer esistente
+    if (existingTimer) {
+      existingTimer.remove();
+    }
+
     // Crea sprite granata ferma
     const grenade = this.add.text(x, y, weaponDef.icon, {
       fontSize: '20px'
@@ -988,32 +1185,42 @@ export class GameScene extends Phaser.Scene {
     grenade.setOrigin(0.5);
     grenade.setDepth(15);
 
-    // Sposta il countdown sulla posizione finale
+    // Prendi il countdown corrente
+    let countdown = existingCountdown ? parseInt(existingCountdown.text) : 1;
+
+    // Distruggi il vecchio countdown e creane uno nuovo sulla granata
     if (existingCountdown) {
-      existingCountdown.setPosition(x, y - 25);
+      existingCountdown.destroy();
     }
 
-    // Quando il timer esistente finisce, esplodi
-    // Modifica il callback del timer esistente
-    existingTimer.callback = () => {
-      const currentText = existingCountdown ? parseInt(existingCountdown.text) : 0;
-      const newCount = currentText - 1;
+    const countdownText = this.add.text(x, y - 25, `${countdown}`, {
+      fontSize: '16px',
+      fill: '#ff0000',
+      fontStyle: 'bold'
+    });
+    countdownText.setOrigin(0.5);
+    countdownText.setDepth(15);
 
-      if (existingCountdown) {
-        existingCountdown.setText(`${newCount}`);
-      }
+    // Nuovo timer per il countdown rimanente
+    const waitTimer = this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        countdown--;
+        countdownText.setText(`${countdown}`);
 
-      if (newCount <= 0) {
-        existingTimer.remove();
-        grenade.destroy();
-        if (existingCountdown) existingCountdown.destroy();
-        this.hideEscapeMessage();
+        if (countdown <= 0) {
+          waitTimer.remove();
+          grenade.destroy();
+          countdownText.destroy();
+          this.hideEscapeMessage();
 
-        // Esplosione!
-        this.handleDelayedExplosion(x, y, weaponDef);
-        this.endTurn();
-      }
-    };
+          // Esplosione!
+          this.handleDelayedExplosion(x, y, weaponDef);
+          this.endTurn();
+        }
+      },
+      loop: true
+    });
   }
 
   /**
@@ -1755,6 +1962,7 @@ export class GameScene extends Phaser.Scene {
       // Velocità maggiore durante la fuga!
       const moveSpeed = this.gamePhase === 'escaping' ? 150 : 80;
       const deltaSeconds = delta / 1000;
+      let playerMoved = false;
 
       if (this.aimController.cursors.left.isDown) {
         const newX = this.activePlayer.position.x - (moveSpeed * deltaSeconds);
