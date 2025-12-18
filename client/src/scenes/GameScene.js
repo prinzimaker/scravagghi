@@ -101,6 +101,9 @@ export class GameScene extends Phaser.Scene {
     // Listener per colpo sparato
     this.events.on('shot-fired', this.handleShot, this);
 
+    // Inizializza pacchi armi nascosti
+    this.initWeaponCrates();
+
     // UI
     this.createUI();
 
@@ -198,6 +201,164 @@ export class GameScene extends Phaser.Scene {
 
     // Giocatore attivo corrente
     this.activePlayer = null;
+  }
+
+  /**
+   * Inizializza i pacchi armi nascosti nel terreno
+   */
+  initWeaponCrates() {
+    this.weaponCrates = [];
+
+    // Contenuti possibili dei pacchi
+    const crateContents = [
+      { weapon: WeaponType.PISTOL, ammo: 5, icon: '🔫' },
+      { weapon: WeaponType.GRENADE, ammo: 2, icon: '💣' },
+      { weapon: WeaponType.DYNAMITE, ammo: 2, icon: '🧨' },
+      { weapon: WeaponType.BAZOOKA, ammo: 1, icon: '🚀' }
+    ];
+
+    // Crea 5-8 pacchi nascosti nel terreno
+    const rng = new DeterministicRandom(this.gameSeed + 1000);
+    const numCrates = rng.nextInt(5, 8);
+
+    for (let i = 0; i < numCrates; i++) {
+      // Posizione X casuale (evita i bordi)
+      const x = rng.nextInt(100, this.gameWidth - 100);
+
+      // Trova il terreno a quella posizione
+      const groundY = this.terrain.getGroundY(x);
+
+      // Piazza il pacco sotto la superficie (nascosto)
+      const y = groundY + rng.nextInt(20, 60);
+
+      // Solo se è dentro il terreno
+      if (y < this.gameHeight && this.terrain.isSolid(x, y)) {
+        const content = crateContents[rng.nextInt(0, crateContents.length - 1)];
+
+        this.weaponCrates.push({
+          x,
+          y,
+          weapon: content.weapon,
+          ammo: content.ammo,
+          icon: content.icon,
+          revealed: false,
+          collected: false,
+          sprite: null
+        });
+      }
+    }
+
+    console.log(`📦 ${this.weaponCrates.length} weapon crates hidden in terrain`);
+  }
+
+  /**
+   * Controlla se ci sono pacchi rivelati da un'esplosione
+   */
+  checkRevealedCrates(explosionX, explosionY, radius) {
+    this.weaponCrates.forEach(crate => {
+      if (crate.revealed || crate.collected) return;
+
+      // Se il pacco è ora esposto (non più coperto da terreno)
+      if (!this.terrain.isSolid(crate.x, crate.y)) {
+        crate.revealed = true;
+
+        // Crea lo sprite del pacco
+        crate.sprite = this.add.text(crate.x, crate.y, '📦', {
+          fontSize: '24px'
+        });
+        crate.sprite.setOrigin(0.5);
+        crate.sprite.setDepth(8);
+
+        // Animazione di apparizione
+        crate.sprite.setScale(0);
+        this.tweens.add({
+          targets: crate.sprite,
+          scale: 1,
+          duration: 300,
+          ease: 'Back.easeOut'
+        });
+
+        // Animazione fluttuante continua
+        this.tweens.add({
+          targets: crate.sprite,
+          y: crate.y - 5,
+          duration: 800,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+
+        console.log(`📦 Crate revealed at (${crate.x}, ${crate.y}) - ${crate.icon}`);
+      }
+    });
+  }
+
+  /**
+   * Controlla se il giocatore raccoglie un pacco
+   */
+  checkCrateCollection(player) {
+    if (!player || !player.isAlive()) return;
+
+    this.weaponCrates.forEach(crate => {
+      if (!crate.revealed || crate.collected) return;
+
+      // Distanza dal giocatore al pacco
+      const dx = player.position.x - crate.x;
+      const dy = player.position.y - crate.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // Se il giocatore è abbastanza vicino (raggio di raccolta)
+      if (distance < 30) {
+        crate.collected = true;
+
+        // Aggiungi munizioni all'inventario del giocatore
+        player.weaponInventory.addAmmo(crate.weapon, crate.ammo);
+
+        // Effetto di raccolta
+        if (crate.sprite) {
+          this.tweens.add({
+            targets: crate.sprite,
+            scale: 0,
+            alpha: 0,
+            y: crate.y - 30,
+            duration: 300,
+            onComplete: () => {
+              crate.sprite.destroy();
+              crate.sprite = null;
+            }
+          });
+        }
+
+        // Mostra messaggio di raccolta
+        const collectText = this.add.text(
+          player.position.x,
+          player.position.y - 50,
+          `+${crate.ammo} ${crate.icon}`,
+          {
+            fontSize: '20px',
+            fill: '#00ff00',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 3
+          }
+        );
+        collectText.setOrigin(0.5);
+        collectText.setDepth(25);
+
+        this.tweens.add({
+          targets: collectText,
+          y: player.position.y - 100,
+          alpha: 0,
+          duration: 1500,
+          onComplete: () => collectText.destroy()
+        });
+
+        console.log(`📦 ${player.name} collected ${crate.ammo}x ${crate.icon}!`);
+
+        // Aggiorna UI armi
+        this.updateUI();
+      }
+    });
   }
 
   /**
@@ -812,6 +973,9 @@ export class GameScene extends Phaser.Scene {
     this.terrain.excavate(x, y, explosionRadius);
     this.updateTerrainGraphics(x, y, explosionRadius);
 
+    // Controlla se sono stati rivelati pacchi armi
+    this.checkRevealedCrates(x, y, explosionRadius);
+
     // Converti players per Physics
     const beetlesCompat = this.players.map(p => ({
       x: p.position.x,
@@ -1047,6 +1211,9 @@ export class GameScene extends Phaser.Scene {
     // Scava cratere
     this.terrain.excavate(impactPoint.x, impactPoint.y, explosionRadius);
     this.updateTerrainGraphics(impactPoint.x, impactPoint.y, explosionRadius);
+
+    // Controlla se sono stati rivelati pacchi armi
+    this.checkRevealedCrates(impactPoint.x, impactPoint.y, explosionRadius);
 
     // Converti players per Physics
     const beetlesCompat = this.players.map(p => ({
@@ -1764,6 +1931,8 @@ export class GameScene extends Phaser.Scene {
           this.activePlayer.updateSprite();
           // Perde 1 punto per movimento
           this.activePlayer.addScore(-1);
+          // Controlla raccolta pacchi
+          this.checkCrateCollection(this.activePlayer);
           if (this.gamePhase === 'aiming') {
             this.aimController.shooterX = newX;
             this.aimController.shooterY = groundY - this.activePlayer.height;
@@ -1777,6 +1946,8 @@ export class GameScene extends Phaser.Scene {
           this.activePlayer.updateSprite();
           // Perde 1 punto per movimento
           this.activePlayer.addScore(-1);
+          // Controlla raccolta pacchi
+          this.checkCrateCollection(this.activePlayer);
           if (this.gamePhase === 'aiming') {
             this.aimController.shooterX = newX;
             this.aimController.shooterY = groundY - this.activePlayer.height;
