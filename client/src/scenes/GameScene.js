@@ -3,6 +3,7 @@ import { Player } from '../entities/Player.js';
 import { Physics } from '../physics/Physics.js';
 import { AimController } from '../input/AimController.js';
 import { DeterministicRandom } from '../utils/DeterministicRandom.js';
+import { SoundManager } from '../managers/SoundManager.js';
 
 /**
  * Scena principale del gioco
@@ -12,8 +13,35 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
+  /**
+   * Carica gli asset (audio manifest e file)
+   */
+  preload() {
+    console.log('📦 Loading assets...');
+
+    // Inizializza sound manager
+    this.soundManager = new SoundManager(this);
+
+    // Fase 1: Carica il manifest JSON
+    this.soundManager.preload();
+
+    // Fase 2: Quando il JSON è caricato, carica i file audio
+    this.load.once('filecomplete-json-sounds-manifest', () => {
+      console.log('📋 Manifest loaded, loading audio files...');
+      this.soundManager.loadSoundFiles();
+
+      // Avvia il caricamento dei file audio
+      this.load.start();
+    });
+  }
+
   create() {
     console.log('🎮 GameScene created');
+
+    // Inizializza il sound manager (dopo che i file sono stati caricati)
+    if (this.soundManager) {
+      this.soundManager.create();
+    }
 
     // Dimensioni mondo di gioco
     this.gameWidth = 800;

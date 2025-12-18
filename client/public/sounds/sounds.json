@@ -1,0 +1,26 @@
+{
+  "byte": {
+    "low": [
+      "sound1.wav",
+      "sound2.wav"
+    ],
+    "med": [
+      "sound3.wav",
+      "sound4.wav",
+      "sound5.wav"
+    ],
+    "hig": [
+      "sound6.wav",
+      "sound7.wav",
+      "sound8.wav"
+    ]
+  },
+  "kill": [
+    "sound9.wav",
+    "sound10.wav"
+  ],
+  "frust": [
+    "sound11.wav",
+    "sound12.wav"
+  ]
+}
