@@ -44,8 +44,8 @@ export class GameScene extends Phaser.Scene {
       this.soundManager.create();
     }
 
-    // Dimensioni mondo di gioco
-    this.gameWidth = 800;
+    // Dimensioni mondo di gioco (larghezza aumentata)
+    this.gameWidth = 1200;
     this.gameHeight = 600;
 
     // Stato del gioco
@@ -138,14 +138,18 @@ export class GameScene extends Phaser.Scene {
   initPlayers() {
     this.players = [];
 
+    // Nomi dei giocatori
+    const team0Names = ['Giuseppe', 'Giorgio'];
+    const team1Names = ['Aldus', 'Giovanna'];
+
     // Team 0 (Verde) - 2 giocatori
-    const team0StartX = 100;
+    const team0StartX = 150;
     for (let i = 0; i < 2; i++) {
-      const x = team0StartX + i * 80;
+      const x = team0StartX + i * 100;
       const y = this.terrain.getGroundY(x);
       const player = new Player(
         `p${this.players.length}`,
-        `Verde${i + 1}`,
+        team0Names[i],
         0, // team_id
         i + 1, // team_element
         x,
@@ -156,13 +160,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Team 1 (Rosso) - 2 giocatori
-    const team1StartX = 620;
+    const team1StartX = 950;
     for (let i = 0; i < 2; i++) {
-      const x = team1StartX + i * 80;
+      const x = team1StartX + i * 100;
       const y = this.terrain.getGroundY(x);
       const player = new Player(
         `p${this.players.length}`,
-        `Rosso${i + 1}`,
+        team1Names[i],
         1, // team_id
         i + 1, // team_element
         x,
@@ -233,38 +237,45 @@ export class GameScene extends Phaser.Scene {
    * Crea UI del gioco
    */
   createUI() {
-    // Pannello turno
-    this.turnText = this.add.text(this.gameWidth / 2, 20, 'Turno 1 - Team 1', {
-      fontSize: '24px',
+    // TITOLO PRINCIPALE al centro
+    this.titleText = this.add.text(this.gameWidth / 2, this.gameHeight / 2 - 50, 'SCARAVAGGHI', {
+      fontSize: '72px',
+      fill: '#ffcc00',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6
+    });
+    this.titleText.setOrigin(0.5);
+    this.titleText.setAlpha(0.3); // Semi-trasparente per non disturbare il gioco
+    this.titleText.setDepth(0); // Dietro tutto
+
+    // Pannello turno (in alto a sinistra)
+    this.turnText = this.add.text(20, 10, 'Turno 1 - Team Verde', {
+      fontSize: '18px',
       fill: '#fff',
-      fontStyle: 'bold'
-    });
-    this.turnText.setOrigin(0.5, 0);
-
-    // Timer turno
-    this.timerText = this.add.text(this.gameWidth / 2, 50, '10s', {
-      fontSize: '20px',
-      fill: '#ffff00'
-    });
-    this.timerText.setOrigin(0.5, 0);
-
-    // Istruzioni
-    this.instructionsText = this.add.text(10, this.gameHeight - 100,
-      '↑↓: Angolo | ←→: Muovi | SPAZIO: Spara | ENTER: Cambia arma', {
-      fontSize: '14px',
-      fill: '#fff',
+      fontStyle: 'bold',
       backgroundColor: '#000000aa',
-      padding: { x: 5, y: 5 }
+      padding: { x: 8, y: 4 }
     });
 
-    // Info aggiuntivo
-    this.infoText = this.add.text(10, this.gameHeight - 70,
-      'Il timer si ferma durante la carica e la selezione arma', {
-      fontSize: '12px',
-      fill: '#00ff00',
+    // Timer turno (accanto al turno)
+    this.timerText = this.add.text(200, 10, '10s', {
+      fontSize: '18px',
+      fill: '#ffff00',
+      fontStyle: 'bold',
       backgroundColor: '#000000aa',
-      padding: { x: 5, y: 5 }
+      padding: { x: 8, y: 4 }
     });
+
+    // Legenda comandi (in alto a destra, piccola)
+    this.instructionsText = this.add.text(this.gameWidth - 10, 10,
+      '↑↓ Angolo | ←→ Muovi | SPAZIO Spara | ENTER Armi', {
+      fontSize: '11px',
+      fill: '#aaaaaa',
+      backgroundColor: '#000000aa',
+      padding: { x: 6, y: 4 }
+    });
+    this.instructionsText.setOrigin(1, 0); // Allineato a destra
   }
 
   /**
