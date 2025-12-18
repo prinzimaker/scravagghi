@@ -77,13 +77,25 @@ export class GameScene extends Phaser.Scene {
     this.aimController = new AimController(this);
     this.aimController.create();
 
+    // Crea tutti i tasti in un unico punto (evita duplicati)
+    this.keys = {
+      left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
+      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
+      up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+      down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
+      space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+      enter: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
+      esc: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+    };
+
+    // Passa i tasti all'AimController
+    this.aimController.setKeys(this.keys);
+
     // Inizializza selettore armi
     this.weaponSelector = new WeaponSelector(this);
     this.weaponSelector.create();
+    this.weaponSelector.setKeys(this.keys);
     this.isSelectingWeapon = false;
-
-    // Tasto ENTER per aprire selettore armi
-    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
     // Listener per colpo sparato
     this.events.on('shot-fired', this.handleShot, this);
@@ -374,26 +386,85 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Renderizza il terreno come texture
+   * Renderizza il terreno come texture (campagna erbosa)
    */
   renderTerrain() {
     // Crea texture per il terreno
     const graphics = this.add.graphics();
     graphics.setDepth(0); // Terreno in fondo
 
+    // Trova la superficie per ogni colonna (per disegnare l'erba)
+    const surfaceY = [];
+    for (let x = 0; x < this.gameWidth; x++) {
+      surfaceY[x] = this.terrain.getGroundY(x);
+    }
+
     // Disegna il terreno pixel per pixel
     for (let x = 0; x < this.gameWidth; x++) {
       for (let y = 0; y < this.gameHeight; y++) {
         if (this.terrain.isSolid(x, y)) {
-          // Colore variabile per dare texture
-          const shade = ((x + y) % 10) * 10;
+          // Calcola profondità dalla superficie
+          const depth = y - surfaceY[x];
+
+          // Noise per variazione naturale
+          const noise = ((x * 7 + y * 13) % 20) / 20;
+          const noise2 = ((x * 11 + y * 3) % 15) / 15;
+
+          let r, g, b;
+
+          if (depth < 3) {
+            // ERBA - superficie (verde brillante)
+            const grassShade = 20 + noise * 30;
+            r = 50 + grassShade * 0.3;
+            g = 140 + grassShade;
+            b = 40 + grassShade * 0.2;
+          } else if (depth < 8) {
+            // RADICI/TERRA SUPERFICIALE (marrone chiaro con verde)
+            const soilShade = noise * 25;
+            r = 100 + soilShade;
+            g = 80 + soilShade * 0.7 + (8 - depth) * 5; // sfumatura verde
+            b = 50 + soilShade * 0.3;
+          } else if (depth < 25) {
+            // TERRA (marrone medio)
+            const earthShade = noise * 20 + noise2 * 10;
+            r = 120 + earthShade;
+            g = 85 + earthShade * 0.6;
+            b = 55 + earthShade * 0.3;
+          } else {
+            // TERRA PROFONDA/ROCCIA (marrone scuro)
+            const rockShade = noise * 15;
+            r = 90 + rockShade;
+            g = 70 + rockShade * 0.5;
+            b = 50 + rockShade * 0.3;
+          }
+
           const color = Phaser.Display.Color.GetColor(
-            100 + shade,
-            80 + shade,
-            40 + shade
+            Math.floor(r),
+            Math.floor(g),
+            Math.floor(b)
           );
           graphics.fillStyle(color, 1);
           graphics.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+
+    // Aggiungi fili d'erba sulla superficie
+    for (let x = 0; x < this.gameWidth; x += 2) {
+      const groundY = surfaceY[x];
+      if (groundY < this.gameHeight) {
+        // Altezza variabile dell'erba
+        const grassHeight = 3 + Math.floor(((x * 7) % 5));
+        const grassColor = Phaser.Display.Color.GetColor(
+          30 + ((x * 3) % 30),
+          120 + ((x * 7) % 40),
+          20 + ((x * 11) % 20)
+        );
+
+        graphics.fillStyle(grassColor, 0.8);
+        for (let i = 0; i < grassHeight; i++) {
+          const offsetX = Math.floor(Math.sin(x * 0.1 + i * 0.5) * 1);
+          graphics.fillRect(x + offsetX, groundY - i - 1, 1, 1);
         }
       }
     }
@@ -406,16 +477,60 @@ export class GameScene extends Phaser.Scene {
    */
   updateTerrainGraphics(x, y, radius) {
     // Ridisegna solo l'area modificata
-    const minX = Math.max(0, x - radius);
-    const maxX = Math.min(this.gameWidth, x + radius);
-    const minY = Math.max(0, y - radius);
-    const maxY = Math.min(this.gameHeight, y + radius);
+    const minX = Math.max(0, x - radius - 5);
+    const maxX = Math.min(this.gameWidth, x + radius + 5);
+    const minY = Math.max(0, y - radius - 5);
+    const maxY = Math.min(this.gameHeight, y + radius + 5);
 
     for (let px = minX; px < maxX; px++) {
+      // Trova la nuova superficie per questa colonna
+      const surfaceY = this.terrain.getGroundY(px);
+
       for (let py = minY; py < maxY; py++) {
         if (!this.terrain.isSolid(px, py)) {
-          // Cancella il pixel
+          // Cancella il pixel (sfondo scuro)
           this.terrainGraphics.fillStyle(0x1a1a2e, 1);
+          this.terrainGraphics.fillRect(px, py, 1, 1);
+        } else {
+          // Ridisegna con colori erbosi
+          const depth = py - surfaceY;
+          const noise = ((px * 7 + py * 13) % 20) / 20;
+          const noise2 = ((px * 11 + py * 3) % 15) / 15;
+
+          let r, g, b;
+
+          if (depth < 3) {
+            // ERBA
+            const grassShade = 20 + noise * 30;
+            r = 50 + grassShade * 0.3;
+            g = 140 + grassShade;
+            b = 40 + grassShade * 0.2;
+          } else if (depth < 8) {
+            // RADICI/TERRA SUPERFICIALE
+            const soilShade = noise * 25;
+            r = 100 + soilShade;
+            g = 80 + soilShade * 0.7 + (8 - depth) * 5;
+            b = 50 + soilShade * 0.3;
+          } else if (depth < 25) {
+            // TERRA
+            const earthShade = noise * 20 + noise2 * 10;
+            r = 120 + earthShade;
+            g = 85 + earthShade * 0.6;
+            b = 55 + earthShade * 0.3;
+          } else {
+            // TERRA PROFONDA
+            const rockShade = noise * 15;
+            r = 90 + rockShade;
+            g = 70 + rockShade * 0.5;
+            b = 50 + rockShade * 0.3;
+          }
+
+          const color = Phaser.Display.Color.GetColor(
+            Math.floor(r),
+            Math.floor(g),
+            Math.floor(b)
+          );
+          this.terrainGraphics.fillStyle(color, 1);
           this.terrainGraphics.fillRect(px, py, 1, 1);
         }
       }
@@ -429,16 +544,75 @@ export class GameScene extends Phaser.Scene {
    * Crea UI del gioco
    */
   createUI() {
-    // TITOLO PRINCIPALE in cima
-    this.titleText = this.add.text(this.gameWidth / 2, 35, 'SCRAVAGGHI', {
-      fontSize: '42px',
-      fill: '#ffcc00',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4
+    // TITOLO PRINCIPALE in cima - stile retro game
+    const titleY = 32;
+    const titleX = this.gameWidth / 2;
+
+    // Layer 1: Ombra profonda (nero)
+    const titleShadow2 = this.add.text(titleX + 4, titleY + 4, 'scravagghi', {
+      fontSize: '48px',
+      fontFamily: 'Georgia, serif',
+      fill: '#000000',
+      fontStyle: 'bold italic'
+    });
+    titleShadow2.setOrigin(0.5);
+    titleShadow2.setDepth(98);
+    titleShadow2.setAlpha(0.6);
+
+    // Layer 2: Ombra (marrone scuro)
+    const titleShadow = this.add.text(titleX + 2, titleY + 2, 'scravagghi', {
+      fontSize: '48px',
+      fontFamily: 'Georgia, serif',
+      fill: '#4a2800',
+      fontStyle: 'bold italic'
+    });
+    titleShadow.setOrigin(0.5);
+    titleShadow.setDepth(99);
+
+    // Layer 3: Bordo esterno (marrone)
+    const titleOutline = this.add.text(titleX, titleY, 'scravagghi', {
+      fontSize: '48px',
+      fontFamily: 'Georgia, serif',
+      fill: '#996600',
+      fontStyle: 'bold italic',
+      stroke: '#3d1a00',
+      strokeThickness: 6
+    });
+    titleOutline.setOrigin(0.5);
+    titleOutline.setDepth(100);
+
+    // Layer 4: Testo principale (gradiente dorato simulato)
+    this.titleText = this.add.text(titleX, titleY, 'scravagghi', {
+      fontSize: '48px',
+      fontFamily: 'Georgia, serif',
+      fill: '#ffd700',
+      fontStyle: 'bold italic',
+      stroke: '#cc8800',
+      strokeThickness: 2
     });
     this.titleText.setOrigin(0.5);
-    this.titleText.setDepth(100); // Sopra tutto
+    this.titleText.setDepth(101);
+
+    // Layer 5: Highlight superiore (giallo chiaro)
+    const titleHighlight = this.add.text(titleX, titleY - 1, 'scravagghi', {
+      fontSize: '48px',
+      fontFamily: 'Georgia, serif',
+      fill: '#ffee88',
+      fontStyle: 'bold italic'
+    });
+    titleHighlight.setOrigin(0.5);
+    titleHighlight.setDepth(102);
+    titleHighlight.setAlpha(0.4);
+
+    // Effetto brillantezza animato
+    this.tweens.add({
+      targets: titleHighlight,
+      alpha: { from: 0.2, to: 0.5 },
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
 
     // Pannello turno (in alto a sinistra, sotto il titolo)
     this.turnText = this.add.text(20, 60, 'Turno 1 - Team Verde', {
@@ -459,14 +633,33 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Legenda comandi (in alto a destra, piccola)
-    this.instructionsText = this.add.text(this.gameWidth - 10, 60,
+    this.instructionsText = this.add.text(this.gameWidth - 10, 85,
       '↑↓ Angolo | ←→ Muovi | SPAZIO Spara | ENTER Armi', {
-      fontSize: '11px',
-      fill: '#aaaaaa',
+      fontSize: '10px',
+      fill: '#888888',
       backgroundColor: '#000000aa',
-      padding: { x: 6, y: 4 }
+      padding: { x: 4, y: 2 }
     });
-    this.instructionsText.setOrigin(1, 0); // Allineato a destra
+    this.instructionsText.setOrigin(1, 0);
+
+    // Info giocatore corrente e arma (in alto a destra)
+    this.currentPlayerText = this.add.text(this.gameWidth - 10, 60, 'Giocatore: ---', {
+      fontSize: '14px',
+      fill: '#ffffff',
+      fontStyle: 'bold',
+      backgroundColor: '#000000aa',
+      padding: { x: 8, y: 4 }
+    });
+    this.currentPlayerText.setOrigin(1, 0);
+
+    this.currentWeaponText = this.add.text(this.gameWidth - 10, 10, '💩 Pallina di Cacca', {
+      fontSize: '16px',
+      fill: '#ffff00',
+      fontStyle: 'bold',
+      backgroundColor: '#000000aa',
+      padding: { x: 8, y: 4 }
+    });
+    this.currentWeaponText.setOrigin(1, 0);
   }
 
   /**
@@ -727,18 +920,12 @@ export class GameScene extends Phaser.Scene {
     // Processa i danni
     this.processExplosionDamages(damages, x, y, weaponDef);
 
-    // Applica gravità ai players
-    this.players.forEach(player => {
-      const beetleCompat = {
-        x: player.position.x,
-        y: player.position.y,
-        isAlive: player.isAlive(),
-        moveTo: (nx, ny) => player.moveTo(nx, ny)
-      };
-
-      if (Physics.applyGravityToBeetle(beetleCompat, this.terrain)) {
-        player.updateSprite();
-      }
+    // Applica gravità animata ai players
+    this.time.delayedCall(500, () => {
+      this.applyAnimatedGravity(() => {
+        // La gravità è stata applicata, il turno può continuare
+        console.log('🪂 Gravity applied after delayed explosion');
+      });
     });
   }
 
@@ -990,22 +1177,12 @@ export class GameScene extends Phaser.Scene {
     // Processa i danni
     this.processExplosionDamages(damages, impactPoint.x, impactPoint.y, weapon);
 
-    // Applica gravità ai players
-    this.players.forEach(player => {
-      const beetleCompat = {
-        x: player.position.x,
-        y: player.position.y,
-        isAlive: player.isAlive(),
-        moveTo: (x, y) => player.moveTo(x, y)
-      };
-
-      if (Physics.applyGravityToBeetle(beetleCompat, this.terrain)) {
-        player.updateSprite();
-      }
+    // Applica gravità animata ai players, poi termina il turno
+    this.time.delayedCall(500, () => {
+      this.applyAnimatedGravity(() => {
+        this.endTurn();
+      });
     });
-
-    // Termina il turno
-    this.endTurn();
   }
 
   /**
@@ -1031,9 +1208,23 @@ export class GameScene extends Phaser.Scene {
       const player = beetle.player; // Recupera il player originale
       player.updateSprite();
 
+      // SISTEMA PUNTEGGIO: L'attaccante guadagna punti per danni agli AVVERSARI
+      if (this.activePlayer && player.team_id !== this.activePlayer.team_id) {
+        // Punti = percentuale di danno x 100 (es: 30% = 3000 punti)
+        const damagePoints = Math.round(percent * 100);
+        this.activePlayer.addScore(damagePoints);
+        console.log(`🏆 ${this.activePlayer.name} +${damagePoints} punti (danno ${Math.round(percent)}%)`);
+      }
+
       // Log danno e traccia eventi audio
       if (player.isDead()) {
         console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
+
+        // SISTEMA PUNTEGGIO: 500 punti per uccisione di avversario
+        if (this.activePlayer && player.team_id !== this.activePlayer.team_id) {
+          this.activePlayer.addScore(500);
+          console.log(`🏆 ${this.activePlayer.name} +500 punti (uccisione!)`);
+        }
 
         // Traccia che c'è stata almeno una morte
         anyDeath = true;
@@ -1203,17 +1394,21 @@ export class GameScene extends Phaser.Scene {
     const team0Alive = this.players.filter(p => p.team_id === 0 && p.isAlive()).length;
     const team1Alive = this.players.filter(p => p.team_id === 1 && p.isAlive()).length;
 
-    let winner;
+    let winnerTeam;
+    let winnerText;
     if (team0Alive > team1Alive) {
-      winner = 'Team 0 (Verde) vince!';
+      winnerTeam = 0;
+      winnerText = 'Team Verde vince!';
     } else if (team1Alive > team0Alive) {
-      winner = 'Team 1 (Rosso) vince!';
+      winnerTeam = 1;
+      winnerText = 'Team Rosso vince!';
     } else {
-      winner = 'Pareggio!';
+      winnerTeam = -1;
+      winnerText = 'Pareggio!';
     }
 
-    // Nota: non ci sono suoni per vittoria nelle linee guida audio
-    // I suoni sono solo per feedback durante il gameplay (danno, morte, frustrazione)
+    // Ordina i giocatori per punteggio (dal più alto al più basso)
+    const sortedPlayers = [...this.players].sort((a, b) => b.score - a.score);
 
     // Overlay vittoria
     const overlay = this.add.rectangle(
@@ -1222,31 +1417,98 @@ export class GameScene extends Phaser.Scene {
       this.gameWidth,
       this.gameHeight,
       0x000000,
-      0.7
+      0.85
     );
+    overlay.setDepth(200);
 
+    // Titolo vittoria
     const winText = this.add.text(
       this.gameWidth / 2,
-      this.gameHeight / 2 - 50,
-      `🏆 ${winner} vince!`,
+      80,
+      `🏆 ${winnerText}`,
       {
-        fontSize: '48px',
-        fill: '#ffff00',
-        fontStyle: 'bold'
+        fontSize: '42px',
+        fill: winnerTeam === 0 ? '#44ff44' : winnerTeam === 1 ? '#ff4444' : '#ffff00',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4
       }
     );
     winText.setOrigin(0.5);
+    winText.setDepth(201);
 
+    // Titolo classifica
+    const scoreTitle = this.add.text(
+      this.gameWidth / 2,
+      140,
+      '📊 CLASSIFICA FINALE',
+      {
+        fontSize: '28px',
+        fill: '#ffffff',
+        fontStyle: 'bold'
+      }
+    );
+    scoreTitle.setOrigin(0.5);
+    scoreTitle.setDepth(201);
+
+    // Mostra punteggi di tutti i giocatori
+    let yPos = 190;
+    sortedPlayers.forEach((player, index) => {
+      const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '  ';
+      const teamColor = player.team_id === 0 ? '#44ff44' : '#ff4444';
+      const teamBadge = player.team_id === 0 ? '🟢' : '🔴';
+      const status = player.isAlive() ? '' : ' 💀';
+
+      const scoreText = this.add.text(
+        this.gameWidth / 2,
+        yPos,
+        `${medal} ${teamBadge} ${player.name}${status}: ${player.score.toLocaleString()} punti`,
+        {
+          fontSize: '22px',
+          fill: teamColor,
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        }
+      );
+      scoreText.setOrigin(0.5);
+      scoreText.setDepth(201);
+      yPos += 40;
+    });
+
+    // Calcola punteggio totale per team
+    const team0Score = this.players.filter(p => p.team_id === 0).reduce((sum, p) => sum + p.score, 0);
+    const team1Score = this.players.filter(p => p.team_id === 1).reduce((sum, p) => sum + p.score, 0);
+
+    // Mostra totali team
+    yPos += 20;
+    const teamScoreText = this.add.text(
+      this.gameWidth / 2,
+      yPos,
+      `Team Verde: ${team0Score.toLocaleString()} pts  |  Team Rosso: ${team1Score.toLocaleString()} pts`,
+      {
+        fontSize: '18px',
+        fill: '#aaaaaa',
+        fontStyle: 'bold'
+      }
+    );
+    teamScoreText.setOrigin(0.5);
+    teamScoreText.setDepth(201);
+
+    // Istruzioni restart
     const restartText = this.add.text(
       this.gameWidth / 2,
-      this.gameHeight / 2 + 50,
+      this.gameHeight - 50,
       'Premi R per ricominciare',
       {
         fontSize: '24px',
-        fill: '#fff'
+        fill: '#ffffff',
+        backgroundColor: '#333333',
+        padding: { x: 20, y: 10 }
       }
     );
     restartText.setOrigin(0.5);
+    restartText.setDepth(201);
 
     // Restart
     this.input.keyboard.once('keydown-R', () => {
@@ -1269,6 +1531,127 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.timerText.setColor('#ffff00');
     }
+
+    // Aggiorna info giocatore corrente
+    if (this.activePlayer && this.currentPlayerText) {
+      const teamColor = this.activePlayer.team_id === 0 ? '#44ff44' : '#ff4444';
+      this.currentPlayerText.setText(`Giocatore: ${this.activePlayer.name}`);
+      this.currentPlayerText.setColor(teamColor);
+    }
+
+    // Aggiorna info arma corrente
+    if (this.activePlayer && this.currentWeaponText) {
+      const weaponDef = this.activePlayer.weaponInventory.getCurrentWeaponDef();
+      const ammo = this.activePlayer.weaponInventory.getAmmo(this.activePlayer.weaponInventory.getCurrentWeapon());
+      const ammoText = ammo === Infinity ? '∞' : ammo;
+      this.currentWeaponText.setText(`${weaponDef.icon} ${weaponDef.name} (${ammoText})`);
+    }
+  }
+
+  /**
+   * Controlla se il terreno è troppo ripido per essere scalato
+   * @param {number} fromX - Posizione X di partenza
+   * @param {number} toX - Posizione X di destinazione
+   * @returns {boolean} True se si può camminare, false se troppo ripido
+   */
+  canWalkTo(fromX, toX) {
+    const fromGroundY = this.terrain.getGroundY(Math.floor(fromX));
+    const toGroundY = this.terrain.getGroundY(Math.floor(toX));
+
+    // Calcola la differenza di altezza
+    const heightDiff = fromGroundY - toGroundY; // Positivo = salita, Negativo = discesa
+    const horizontalDist = Math.abs(toX - fromX);
+
+    // Se stiamo scendendo, sempre permesso
+    if (heightDiff <= 0) {
+      return true;
+    }
+
+    // Calcola la pendenza (quanto saliamo per pixel orizzontale)
+    const slope = heightDiff / horizontalDist;
+
+    // Pendenza massima permessa (circa 45-60 gradi)
+    // slope = 1.0 significa 45 gradi
+    // slope = 1.73 significa circa 60 gradi
+    const maxSlope = 1.5;
+
+    // Se la pendenza è troppo ripida, non si può salire
+    if (slope > maxSlope) {
+      return false;
+    }
+
+    // Controlla anche se c'è un soffitto (overhang) sopra la destinazione
+    // Cerca se c'è terreno solido sopra la testa del cockroach
+    const cockroachHeight = 15;
+    for (let y = toGroundY - cockroachHeight; y < toGroundY; y++) {
+      if (this.terrain.isSolid(Math.floor(toX), Math.floor(y))) {
+        // C'è un ostacolo sopra, non possiamo passare
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Applica gravità animata a tutti i giocatori dopo un'esplosione
+   * @param {Function} onComplete - Callback da chiamare quando tutti hanno finito di cadere
+   */
+  applyAnimatedGravity(onComplete) {
+    const fallingPlayers = [];
+
+    // Controlla quali giocatori devono cadere
+    this.players.forEach(player => {
+      if (!player.isAlive()) return;
+
+      const currentY = player.position.y;
+      const groundY = this.terrain.getGroundY(Math.floor(player.position.x));
+
+      // Se il giocatore è sopra il terreno (con margine), deve cadere
+      if (currentY < groundY - 2) {
+        fallingPlayers.push({
+          player,
+          startY: currentY,
+          endY: groundY
+        });
+      }
+    });
+
+    if (fallingPlayers.length === 0) {
+      // Nessuno deve cadere
+      if (onComplete) onComplete();
+      return;
+    }
+
+    console.log(`🪂 ${fallingPlayers.length} cockroaches falling...`);
+
+    let completedCount = 0;
+
+    fallingPlayers.forEach(({ player, startY, endY }) => {
+      const fallDistance = endY - startY;
+      // Durata proporzionale alla distanza (minimo 200ms, massimo 800ms)
+      const duration = Math.min(800, Math.max(200, fallDistance * 3));
+
+      // Anima la caduta
+      this.tweens.add({
+        targets: player.position,
+        y: endY,
+        duration: duration,
+        ease: 'Bounce.easeOut', // Rimbalzo quando atterra
+        onUpdate: () => {
+          player.updateSprite();
+        },
+        onComplete: () => {
+          player.updateSprite();
+          completedCount++;
+
+          // Quando tutti hanno finito di cadere
+          if (completedCount >= fallingPlayers.length && onComplete) {
+            onComplete();
+          }
+        }
+      });
+    });
   }
 
   /**
@@ -1329,10 +1712,17 @@ export class GameScene extends Phaser.Scene {
       (weaponType, weaponDef) => {
         this.isSelectingWeapon = false;
 
+        // Reset di tutti i tasti dopo la chiusura del selettore
+        if (this.keys) {
+          Object.values(this.keys).forEach(key => key.reset());
+        }
+
         if (weaponType && weaponDef) {
           console.log(`🔫 Selected weapon: ${weaponDef.name}`);
           // Aggiorna l'arma nell'AimController
           this.aimController.setWeapon(weaponType, weaponDef);
+          // Aggiorna UI con la nuova arma
+          this.updateUI();
         } else {
           console.log('🔫 Weapon selection cancelled');
         }
@@ -1376,7 +1766,7 @@ export class GameScene extends Phaser.Scene {
 
     // Gestione apertura selettore armi con ENTER
     if (this.gamePhase === 'aiming' && !this.isSelectingWeapon && this.activePlayer) {
-      if (Phaser.Input.Keyboard.JustDown(this.enterKey)) {
+      if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
         this.openWeaponSelector();
       }
     }
@@ -1394,11 +1784,12 @@ export class GameScene extends Phaser.Scene {
 
       if (this.aimController.cursors.left.isDown) {
         const newX = this.activePlayer.position.x - (moveSpeed * deltaSeconds);
-        if (newX > 20) {
+        if (newX > 20 && this.canWalkTo(this.activePlayer.position.x, newX)) {
           const groundY = this.terrain.getGroundY(Math.floor(newX));
           this.activePlayer.moveTo(newX, groundY);
           this.activePlayer.updateSprite();
-          playerMoved = true;
+          // Perde 1 punto per movimento
+          this.activePlayer.addScore(-1);
           if (this.gamePhase === 'aiming') {
             this.aimController.shooterX = newX;
             this.aimController.shooterY = groundY - this.activePlayer.height;
@@ -1406,11 +1797,12 @@ export class GameScene extends Phaser.Scene {
         }
       } else if (this.aimController.cursors.right.isDown) {
         const newX = this.activePlayer.position.x + (moveSpeed * deltaSeconds);
-        if (newX < this.gameWidth - 20) {
+        if (newX < this.gameWidth - 20 && this.canWalkTo(this.activePlayer.position.x, newX)) {
           const groundY = this.terrain.getGroundY(Math.floor(newX));
           this.activePlayer.moveTo(newX, groundY);
           this.activePlayer.updateSprite();
-          playerMoved = true;
+          // Perde 1 punto per movimento
+          this.activePlayer.addScore(-1);
           if (this.gamePhase === 'aiming') {
             this.aimController.shooterX = newX;
             this.aimController.shooterY = groundY - this.activePlayer.height;

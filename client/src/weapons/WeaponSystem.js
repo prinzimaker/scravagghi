@@ -33,7 +33,7 @@ export const WeaponDefinitions = {
     name: 'Pallina di Cacca',
     icon: '💩',
     description: 'Sempre disponibile, arco parabolico',
-    damage: 15, // 15% del max HP per colpo diretto (dimezzato)
+    damage: 30, // 30% del max HP per colpo diretto (raddoppiato)
     maxAmmo: Infinity,
     startingAmmo: Infinity,
     // Fisica del proiettile
@@ -262,6 +262,7 @@ export class WeaponSelector {
     this.onWeaponSelected = null;
     this.selectedIndex = 0;
     this.inputEnabled = false;
+    this.keys = null; // Riferimento ai tasti condivisi
   }
 
   /**
@@ -309,9 +310,13 @@ export class WeaponSelector {
     });
     instructions.setOrigin(0.5);
     this.container.add(instructions);
+  }
 
-    // Input handling
-    this.setupInput();
+  /**
+   * Imposta i riferimenti ai tasti (chiamato da GameScene)
+   */
+  setKeys(keys) {
+    this.keys = keys;
   }
 
   /**
@@ -356,17 +361,6 @@ export class WeaponSelector {
   }
 
   /**
-   * Configura l'input
-   */
-  setupInput() {
-    // Tasti per navigazione
-    this.leftKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
-    this.rightKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
-    this.enterKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
-    this.escKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-  }
-
-  /**
    * Mostra il selettore armi
    */
   show(inventory, callback) {
@@ -375,6 +369,14 @@ export class WeaponSelector {
     this.isVisible = true;
     this.inventory = inventory;
     this.onWeaponSelected = callback;
+
+    // Reset dello stato dei tasti per evitare input "sporchi"
+    if (this.keys) {
+      this.keys.left.reset();
+      this.keys.right.reset();
+      this.keys.enter.reset();
+      this.keys.esc.reset();
+    }
 
     // Trova l'indice dell'arma corrente
     const currentWeapon = inventory.getCurrentWeapon();
@@ -407,6 +409,17 @@ export class WeaponSelector {
 
     this.isVisible = false;
     this.inputEnabled = false;
+
+    // Reset dello stato dei tasti per evitare input "sporchi"
+    if (this.keys) {
+      this.keys.left.reset();
+      this.keys.right.reset();
+      this.keys.enter.reset();
+      this.keys.esc.reset();
+      this.keys.up.reset();
+      this.keys.down.reset();
+      this.keys.space.reset();
+    }
 
     // Anima l'uscita
     this.scene.tweens.add({
@@ -515,19 +528,19 @@ export class WeaponSelector {
    * Update chiamato ogni frame
    */
   update() {
-    if (!this.inputEnabled) return;
+    if (!this.inputEnabled || !this.keys) return;
 
-    // Navigazione con tastiera
-    if (Phaser.Input.Keyboard.JustDown(this.leftKey)) {
+    // Navigazione con tastiera (usa i tasti condivisi)
+    if (Phaser.Input.Keyboard.JustDown(this.keys.left)) {
       this.selectPrevious();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.rightKey)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.right)) {
       this.selectNext();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.enterKey)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
       this.confirmSelection();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
       this.cancel();
     }
   }
