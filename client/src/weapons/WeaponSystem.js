@@ -48,7 +48,7 @@ export const WeaponDefinitions = {
     gravity: 245, // 1/4 della gravità = arco 4x più lungo
     maxVelocity: 1500, // Velocità alta per proiettile veloce
     arcFactor: 4.0, // Arco 4 volte più lungo
-    explosionRadius: 20, // Esplosione più piccola
+    explosionRadius: 4, // Cratere minimo (10% della pallina di cacca)
     // Comportamento speciale
     bounces: false,
     explodeOnImpact: true,
