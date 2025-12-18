@@ -279,14 +279,33 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Legenda comandi (in alto a destra, piccola)
-    this.instructionsText = this.add.text(this.gameWidth - 10, 60,
+    this.instructionsText = this.add.text(this.gameWidth - 10, 85,
       '↑↓ Angolo | ←→ Muovi | SPAZIO Spara | ENTER Armi', {
-      fontSize: '11px',
-      fill: '#aaaaaa',
+      fontSize: '10px',
+      fill: '#888888',
       backgroundColor: '#000000aa',
-      padding: { x: 6, y: 4 }
+      padding: { x: 4, y: 2 }
     });
-    this.instructionsText.setOrigin(1, 0); // Allineato a destra
+    this.instructionsText.setOrigin(1, 0);
+
+    // Info giocatore corrente e arma (in alto a destra)
+    this.currentPlayerText = this.add.text(this.gameWidth - 10, 60, 'Giocatore: ---', {
+      fontSize: '14px',
+      fill: '#ffffff',
+      fontStyle: 'bold',
+      backgroundColor: '#000000aa',
+      padding: { x: 8, y: 4 }
+    });
+    this.currentPlayerText.setOrigin(1, 0);
+
+    this.currentWeaponText = this.add.text(this.gameWidth - 10, 10, '💩 Pallina di Cacca', {
+      fontSize: '16px',
+      fill: '#ffff00',
+      fontStyle: 'bold',
+      backgroundColor: '#000000aa',
+      padding: { x: 8, y: 4 }
+    });
+    this.currentWeaponText.setOrigin(1, 0);
   }
 
   /**
@@ -547,18 +566,12 @@ export class GameScene extends Phaser.Scene {
     // Processa i danni
     this.processExplosionDamages(damages, x, y, weaponDef);
 
-    // Applica gravità ai players
-    this.players.forEach(player => {
-      const beetleCompat = {
-        x: player.position.x,
-        y: player.position.y,
-        isAlive: player.isAlive(),
-        moveTo: (nx, ny) => player.moveTo(nx, ny)
-      };
-
-      if (Physics.applyGravityToBeetle(beetleCompat, this.terrain)) {
-        player.updateSprite();
-      }
+    // Applica gravità animata ai players
+    this.time.delayedCall(500, () => {
+      this.applyAnimatedGravity(() => {
+        // La gravità è stata applicata, il turno può continuare
+        console.log('🪂 Gravity applied after delayed explosion');
+      });
     });
   }
 
@@ -795,22 +808,12 @@ export class GameScene extends Phaser.Scene {
     // Processa i danni
     this.processExplosionDamages(damages, impactPoint.x, impactPoint.y, weapon);
 
-    // Applica gravità ai players
-    this.players.forEach(player => {
-      const beetleCompat = {
-        x: player.position.x,
-        y: player.position.y,
-        isAlive: player.isAlive(),
-        moveTo: (x, y) => player.moveTo(x, y)
-      };
-
-      if (Physics.applyGravityToBeetle(beetleCompat, this.terrain)) {
-        player.updateSprite();
-      }
+    // Applica gravità animata ai players, poi termina il turno
+    this.time.delayedCall(500, () => {
+      this.applyAnimatedGravity(() => {
+        this.endTurn();
+      });
     });
-
-    // Termina il turno
-    this.endTurn();
   }
 
   /**
@@ -836,9 +839,23 @@ export class GameScene extends Phaser.Scene {
       const player = beetle.player; // Recupera il player originale
       player.updateSprite();
 
+      // SISTEMA PUNTEGGIO: L'attaccante guadagna punti per danni agli AVVERSARI
+      if (this.activePlayer && player.team_id !== this.activePlayer.team_id) {
+        // Punti = percentuale di danno x 100 (es: 30% = 3000 punti)
+        const damagePoints = Math.round(percent * 100);
+        this.activePlayer.addScore(damagePoints);
+        console.log(`🏆 ${this.activePlayer.name} +${damagePoints} punti (danno ${Math.round(percent)}%)`);
+      }
+
       // Log danno e traccia eventi audio
       if (player.isDead()) {
         console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
+
+        // SISTEMA PUNTEGGIO: 500 punti per uccisione di avversario
+        if (this.activePlayer && player.team_id !== this.activePlayer.team_id) {
+          this.activePlayer.addScore(500);
+          console.log(`🏆 ${this.activePlayer.name} +500 punti (uccisione!)`);
+        }
 
         // Traccia che c'è stata almeno una morte
         anyDeath = true;
@@ -1008,17 +1025,21 @@ export class GameScene extends Phaser.Scene {
     const team0Alive = this.players.filter(p => p.team_id === 0 && p.isAlive()).length;
     const team1Alive = this.players.filter(p => p.team_id === 1 && p.isAlive()).length;
 
-    let winner;
+    let winnerTeam;
+    let winnerText;
     if (team0Alive > team1Alive) {
-      winner = 'Team 0 (Verde) vince!';
+      winnerTeam = 0;
+      winnerText = 'Team Verde vince!';
     } else if (team1Alive > team0Alive) {
-      winner = 'Team 1 (Rosso) vince!';
+      winnerTeam = 1;
+      winnerText = 'Team Rosso vince!';
     } else {
-      winner = 'Pareggio!';
+      winnerTeam = -1;
+      winnerText = 'Pareggio!';
     }
 
-    // Nota: non ci sono suoni per vittoria nelle linee guida audio
-    // I suoni sono solo per feedback durante il gameplay (danno, morte, frustrazione)
+    // Ordina i giocatori per punteggio (dal più alto al più basso)
+    const sortedPlayers = [...this.players].sort((a, b) => b.score - a.score);
 
     // Overlay vittoria
     const overlay = this.add.rectangle(
@@ -1027,31 +1048,98 @@ export class GameScene extends Phaser.Scene {
       this.gameWidth,
       this.gameHeight,
       0x000000,
-      0.7
+      0.85
     );
+    overlay.setDepth(200);
 
+    // Titolo vittoria
     const winText = this.add.text(
       this.gameWidth / 2,
-      this.gameHeight / 2 - 50,
-      `🏆 ${winner} vince!`,
+      80,
+      `🏆 ${winnerText}`,
       {
-        fontSize: '48px',
-        fill: '#ffff00',
-        fontStyle: 'bold'
+        fontSize: '42px',
+        fill: winnerTeam === 0 ? '#44ff44' : winnerTeam === 1 ? '#ff4444' : '#ffff00',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4
       }
     );
     winText.setOrigin(0.5);
+    winText.setDepth(201);
 
+    // Titolo classifica
+    const scoreTitle = this.add.text(
+      this.gameWidth / 2,
+      140,
+      '📊 CLASSIFICA FINALE',
+      {
+        fontSize: '28px',
+        fill: '#ffffff',
+        fontStyle: 'bold'
+      }
+    );
+    scoreTitle.setOrigin(0.5);
+    scoreTitle.setDepth(201);
+
+    // Mostra punteggi di tutti i giocatori
+    let yPos = 190;
+    sortedPlayers.forEach((player, index) => {
+      const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '  ';
+      const teamColor = player.team_id === 0 ? '#44ff44' : '#ff4444';
+      const teamBadge = player.team_id === 0 ? '🟢' : '🔴';
+      const status = player.isAlive() ? '' : ' 💀';
+
+      const scoreText = this.add.text(
+        this.gameWidth / 2,
+        yPos,
+        `${medal} ${teamBadge} ${player.name}${status}: ${player.score.toLocaleString()} punti`,
+        {
+          fontSize: '22px',
+          fill: teamColor,
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        }
+      );
+      scoreText.setOrigin(0.5);
+      scoreText.setDepth(201);
+      yPos += 40;
+    });
+
+    // Calcola punteggio totale per team
+    const team0Score = this.players.filter(p => p.team_id === 0).reduce((sum, p) => sum + p.score, 0);
+    const team1Score = this.players.filter(p => p.team_id === 1).reduce((sum, p) => sum + p.score, 0);
+
+    // Mostra totali team
+    yPos += 20;
+    const teamScoreText = this.add.text(
+      this.gameWidth / 2,
+      yPos,
+      `Team Verde: ${team0Score.toLocaleString()} pts  |  Team Rosso: ${team1Score.toLocaleString()} pts`,
+      {
+        fontSize: '18px',
+        fill: '#aaaaaa',
+        fontStyle: 'bold'
+      }
+    );
+    teamScoreText.setOrigin(0.5);
+    teamScoreText.setDepth(201);
+
+    // Istruzioni restart
     const restartText = this.add.text(
       this.gameWidth / 2,
-      this.gameHeight / 2 + 50,
+      this.gameHeight - 50,
       'Premi R per ricominciare',
       {
         fontSize: '24px',
-        fill: '#fff'
+        fill: '#ffffff',
+        backgroundColor: '#333333',
+        padding: { x: 20, y: 10 }
       }
     );
     restartText.setOrigin(0.5);
+    restartText.setDepth(201);
 
     // Restart
     this.input.keyboard.once('keydown-R', () => {
@@ -1074,6 +1162,127 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.timerText.setColor('#ffff00');
     }
+
+    // Aggiorna info giocatore corrente
+    if (this.activePlayer && this.currentPlayerText) {
+      const teamColor = this.activePlayer.team_id === 0 ? '#44ff44' : '#ff4444';
+      this.currentPlayerText.setText(`Giocatore: ${this.activePlayer.name}`);
+      this.currentPlayerText.setColor(teamColor);
+    }
+
+    // Aggiorna info arma corrente
+    if (this.activePlayer && this.currentWeaponText) {
+      const weaponDef = this.activePlayer.weaponInventory.getCurrentWeaponDef();
+      const ammo = this.activePlayer.weaponInventory.getAmmo(this.activePlayer.weaponInventory.getCurrentWeapon());
+      const ammoText = ammo === Infinity ? '∞' : ammo;
+      this.currentWeaponText.setText(`${weaponDef.icon} ${weaponDef.name} (${ammoText})`);
+    }
+  }
+
+  /**
+   * Controlla se il terreno è troppo ripido per essere scalato
+   * @param {number} fromX - Posizione X di partenza
+   * @param {number} toX - Posizione X di destinazione
+   * @returns {boolean} True se si può camminare, false se troppo ripido
+   */
+  canWalkTo(fromX, toX) {
+    const fromGroundY = this.terrain.getGroundY(Math.floor(fromX));
+    const toGroundY = this.terrain.getGroundY(Math.floor(toX));
+
+    // Calcola la differenza di altezza
+    const heightDiff = fromGroundY - toGroundY; // Positivo = salita, Negativo = discesa
+    const horizontalDist = Math.abs(toX - fromX);
+
+    // Se stiamo scendendo, sempre permesso
+    if (heightDiff <= 0) {
+      return true;
+    }
+
+    // Calcola la pendenza (quanto saliamo per pixel orizzontale)
+    const slope = heightDiff / horizontalDist;
+
+    // Pendenza massima permessa (circa 45-60 gradi)
+    // slope = 1.0 significa 45 gradi
+    // slope = 1.73 significa circa 60 gradi
+    const maxSlope = 1.5;
+
+    // Se la pendenza è troppo ripida, non si può salire
+    if (slope > maxSlope) {
+      return false;
+    }
+
+    // Controlla anche se c'è un soffitto (overhang) sopra la destinazione
+    // Cerca se c'è terreno solido sopra la testa del cockroach
+    const cockroachHeight = 15;
+    for (let y = toGroundY - cockroachHeight; y < toGroundY; y++) {
+      if (this.terrain.isSolid(Math.floor(toX), Math.floor(y))) {
+        // C'è un ostacolo sopra, non possiamo passare
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Applica gravità animata a tutti i giocatori dopo un'esplosione
+   * @param {Function} onComplete - Callback da chiamare quando tutti hanno finito di cadere
+   */
+  applyAnimatedGravity(onComplete) {
+    const fallingPlayers = [];
+
+    // Controlla quali giocatori devono cadere
+    this.players.forEach(player => {
+      if (!player.isAlive()) return;
+
+      const currentY = player.position.y;
+      const groundY = this.terrain.getGroundY(Math.floor(player.position.x));
+
+      // Se il giocatore è sopra il terreno (con margine), deve cadere
+      if (currentY < groundY - 2) {
+        fallingPlayers.push({
+          player,
+          startY: currentY,
+          endY: groundY
+        });
+      }
+    });
+
+    if (fallingPlayers.length === 0) {
+      // Nessuno deve cadere
+      if (onComplete) onComplete();
+      return;
+    }
+
+    console.log(`🪂 ${fallingPlayers.length} cockroaches falling...`);
+
+    let completedCount = 0;
+
+    fallingPlayers.forEach(({ player, startY, endY }) => {
+      const fallDistance = endY - startY;
+      // Durata proporzionale alla distanza (minimo 200ms, massimo 800ms)
+      const duration = Math.min(800, Math.max(200, fallDistance * 3));
+
+      // Anima la caduta
+      this.tweens.add({
+        targets: player.position,
+        y: endY,
+        duration: duration,
+        ease: 'Bounce.easeOut', // Rimbalzo quando atterra
+        onUpdate: () => {
+          player.updateSprite();
+        },
+        onComplete: () => {
+          player.updateSprite();
+          completedCount++;
+
+          // Quando tutti hanno finito di cadere
+          if (completedCount >= fallingPlayers.length && onComplete) {
+            onComplete();
+          }
+        }
+      });
+    });
   }
 
   /**
@@ -1143,6 +1352,8 @@ export class GameScene extends Phaser.Scene {
           console.log(`🔫 Selected weapon: ${weaponDef.name}`);
           // Aggiorna l'arma nell'AimController
           this.aimController.setWeapon(weaponType, weaponDef);
+          // Aggiorna UI con la nuova arma
+          this.updateUI();
         } else {
           console.log('🔫 Weapon selection cancelled');
         }
@@ -1203,10 +1414,12 @@ export class GameScene extends Phaser.Scene {
 
       if (this.aimController.cursors.left.isDown) {
         const newX = this.activePlayer.position.x - (moveSpeed * deltaSeconds);
-        if (newX > 20) {
+        if (newX > 20 && this.canWalkTo(this.activePlayer.position.x, newX)) {
           const groundY = this.terrain.getGroundY(Math.floor(newX));
           this.activePlayer.moveTo(newX, groundY);
           this.activePlayer.updateSprite();
+          // Perde 1 punto per movimento
+          this.activePlayer.addScore(-1);
           if (this.gamePhase === 'aiming') {
             this.aimController.shooterX = newX;
             this.aimController.shooterY = groundY - this.activePlayer.height;
@@ -1214,10 +1427,12 @@ export class GameScene extends Phaser.Scene {
         }
       } else if (this.aimController.cursors.right.isDown) {
         const newX = this.activePlayer.position.x + (moveSpeed * deltaSeconds);
-        if (newX < this.gameWidth - 20) {
+        if (newX < this.gameWidth - 20 && this.canWalkTo(this.activePlayer.position.x, newX)) {
           const groundY = this.terrain.getGroundY(Math.floor(newX));
           this.activePlayer.moveTo(newX, groundY);
           this.activePlayer.updateSprite();
+          // Perde 1 punto per movimento
+          this.activePlayer.addScore(-1);
           if (this.gamePhase === 'aiming') {
             this.aimController.shooterX = newX;
             this.aimController.shooterY = groundY - this.activePlayer.height;
