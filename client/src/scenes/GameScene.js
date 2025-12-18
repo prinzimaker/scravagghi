@@ -429,9 +429,9 @@ export class GameScene extends Phaser.Scene {
    * Crea UI del gioco
    */
   createUI() {
-    // TITOLO PRINCIPALE in alto al centro
-    this.titleText = this.add.text(this.gameWidth / 2, 45, 'SCARAVAGGHI', {
-      fontSize: '48px',
+    // TITOLO PRINCIPALE al centro
+    this.titleText = this.add.text(this.gameWidth / 2, this.gameHeight / 2 - 50, 'SCRAVAGGHI', {
+      fontSize: '72px',
       fill: '#ffcc00',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -1082,27 +1082,30 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // Testo danno
+      // Testo danno - mostra la % di vita persa
+      const hpLostPercent = Math.round((damage / player.maxHealth) * 100);
       const damageText = this.add.text(
         player.position.x,
-        player.position.y - 40,
-        player.isAlive() ? `-${damage} HP (${Math.round(percent)}%)` : '💀 KILLED!',
+        player.position.y - 30,
+        player.isAlive() ? `-${hpLostPercent}%` : '💀 KILLED!',
         {
-          fontSize: '18px',
-          fill: player.isAlive() ? '#ff0000' : '#ffffff',
+          fontSize: '24px',
+          fill: player.isAlive() ? '#ff4444' : '#ffffff',
           fontStyle: 'bold',
           stroke: '#000000',
-          strokeThickness: 2
+          strokeThickness: 3
         }
       );
       damageText.setOrigin(0.5);
       damageText.setDepth(20); // Sopra tutto per essere sempre visibile
 
+      // Animazione lenta verso l'alto con fade
       this.tweens.add({
         targets: damageText,
-        y: player.position.y - 80,
+        y: player.position.y - 100,
         alpha: 0,
-        duration: 1000,
+        duration: 2000, // 2 secondi per salire lentamente
+        ease: 'Quad.easeOut',
         onComplete: () => damageText.destroy()
       });
     });
