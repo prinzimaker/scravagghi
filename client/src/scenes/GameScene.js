@@ -352,16 +352,75 @@ export class GameScene extends Phaser.Scene {
    * Crea UI del gioco
    */
   createUI() {
-    // TITOLO PRINCIPALE in cima
-    this.titleText = this.add.text(this.gameWidth / 2, 35, 'SCRAVAGGHI', {
-      fontSize: '42px',
-      fill: '#ffcc00',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4
+    // TITOLO PRINCIPALE in cima - stile retro game
+    const titleY = 32;
+    const titleX = this.gameWidth / 2;
+
+    // Layer 1: Ombra profonda (nero)
+    const titleShadow2 = this.add.text(titleX + 4, titleY + 4, 'scravagghi', {
+      fontSize: '48px',
+      fontFamily: 'Georgia, serif',
+      fill: '#000000',
+      fontStyle: 'bold italic'
+    });
+    titleShadow2.setOrigin(0.5);
+    titleShadow2.setDepth(98);
+    titleShadow2.setAlpha(0.6);
+
+    // Layer 2: Ombra (marrone scuro)
+    const titleShadow = this.add.text(titleX + 2, titleY + 2, 'scravagghi', {
+      fontSize: '48px',
+      fontFamily: 'Georgia, serif',
+      fill: '#4a2800',
+      fontStyle: 'bold italic'
+    });
+    titleShadow.setOrigin(0.5);
+    titleShadow.setDepth(99);
+
+    // Layer 3: Bordo esterno (marrone)
+    const titleOutline = this.add.text(titleX, titleY, 'scravagghi', {
+      fontSize: '48px',
+      fontFamily: 'Georgia, serif',
+      fill: '#996600',
+      fontStyle: 'bold italic',
+      stroke: '#3d1a00',
+      strokeThickness: 6
+    });
+    titleOutline.setOrigin(0.5);
+    titleOutline.setDepth(100);
+
+    // Layer 4: Testo principale (gradiente dorato simulato)
+    this.titleText = this.add.text(titleX, titleY, 'scravagghi', {
+      fontSize: '48px',
+      fontFamily: 'Georgia, serif',
+      fill: '#ffd700',
+      fontStyle: 'bold italic',
+      stroke: '#cc8800',
+      strokeThickness: 2
     });
     this.titleText.setOrigin(0.5);
-    this.titleText.setDepth(100); // Sopra tutto
+    this.titleText.setDepth(101);
+
+    // Layer 5: Highlight superiore (giallo chiaro)
+    const titleHighlight = this.add.text(titleX, titleY - 1, 'scravagghi', {
+      fontSize: '48px',
+      fontFamily: 'Georgia, serif',
+      fill: '#ffee88',
+      fontStyle: 'bold italic'
+    });
+    titleHighlight.setOrigin(0.5);
+    titleHighlight.setDepth(102);
+    titleHighlight.setAlpha(0.4);
+
+    // Effetto brillantezza animato
+    this.tweens.add({
+      targets: titleHighlight,
+      alpha: { from: 0.2, to: 0.5 },
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
 
     // Pannello turno (in alto a sinistra, sotto il titolo)
     this.turnText = this.add.text(20, 60, 'Turno 1 - Team Verde', {
