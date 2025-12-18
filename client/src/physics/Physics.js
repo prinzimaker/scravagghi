@@ -104,15 +104,33 @@ export class Physics {
       }
 
       // Check collisione con beetle (solo se esplode all'impatto)
+      // Dopo 30 pixel dalla partenza, il proiettile può colpire CHIUNQUE incluso chi spara
       if (explodeOnImpact) {
+        const distanceFromStart = Math.sqrt(
+          Math.pow(x - startX, 2) + Math.pow(y - startY, 2)
+        );
+        const gracePeriodOver = distanceFromStart > 30; // Grace period di 30 pixel
+
         for (const beetle of beetles) {
           if (!beetle.isAlive) continue;
 
-          const dx = x - beetle.x;
-          const dy = y - beetle.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+          // Hitbox rettangolare del beetle (x,y è ai piedi del beetle)
+          const beetleLeft = beetle.x - beetle.width / 2;
+          const beetleRight = beetle.x + beetle.width / 2;
+          const beetleTop = beetle.y - beetle.height;
+          const beetleBottom = beetle.y;
 
-          if (distance < beetle.width / 2) {
+          // Controlla se il proiettile è dentro l'hitbox
+          if (x >= beetleLeft && x <= beetleRight &&
+              y >= beetleTop && y <= beetleBottom) {
+
+            // Se siamo ancora nel grace period, controlla se è il punto di partenza
+            if (!gracePeriodOver) {
+              // Il proiettile è appena partito, salta questa collisione
+              continue;
+            }
+
+            // Colpito! Danno pieno
             impactPoint = { x, y };
             hitBeetle = beetle;
             trajectory.push({ x, y, t: time, event: 'hit_player' });
