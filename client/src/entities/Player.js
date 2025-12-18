@@ -31,9 +31,10 @@ export class Player {
     this.isMoving = false;
     this.legAnimPhase = 0; // Fase animazione zampe
 
-    // Dimensioni scarafaggio
-    this.width = 20;
-    this.height = 12;
+    // Dimensioni scarafaggio (raddoppiate)
+    this.width = 40;
+    this.height = 24;
+    this.spriteScale = 2; // Scala dello sprite
 
     // Rendering (Phaser sprites)
     this.container = null;
@@ -120,6 +121,7 @@ export class Player {
     // Container per tutto lo scarafaggio
     this.container = scene.add.container(this.position.x, this.position.y);
     this.container.setDepth(10);
+    this.container.setScale(this.spriteScale); // Scala raddoppiata
 
     // Corpo principale (ellisse)
     this.body = scene.add.ellipse(0, -6, 16, 10, shellColor);
@@ -187,9 +189,9 @@ export class Player {
     shellLine.lineTo(6, -6);
     this.container.add(shellLine);
 
-    // Barra HP (sotto lo scarafaggio)
-    const hpBarHeight = 3;
-    const hpBarY = 4;
+    // Barra HP (sotto lo scarafaggio) - dimensioni adattate alla scala
+    const hpBarHeight = 5;
+    const hpBarY = 10;
 
     this.hpBarBg = scene.add.rectangle(
       this.position.x - this.width / 2,
@@ -216,10 +218,10 @@ export class Player {
     const nameColor = this.team_id === 0 ? '#44ff44' : '#ff4444';
     this.nameText = scene.add.text(
       this.position.x,
-      this.position.y - this.height - 10,
+      this.position.y - this.height - 15,
       this.name,
       {
-        fontSize: '9px',
+        fontSize: '12px',
         fill: nameColor,
         stroke: '#000000',
         strokeThickness: 2,
@@ -295,9 +297,9 @@ export class Player {
       this.legAnimPhase += 0.5;
       this.drawLegs(this.legAnimPhase);
 
-      // Direzione (flip orizzontale)
+      // Direzione (flip orizzontale) - mantieni la scala base
       const direction = this.position.x > this.lastX ? 1 : -1;
-      this.container.setScale(direction, 1);
+      this.container.setScale(direction * this.spriteScale, this.spriteScale);
     } else {
       if (this.isMoving) {
         // Appena fermato, resetta zampe
@@ -322,8 +324,8 @@ export class Player {
 
     // Aggiorna barra HP
     if (this.hpBar && this.hpBarBg) {
-      const hpBarHeight = 3;
-      const hpBarY = this.position.y + 4;
+      const hpBarHeight = 5;
+      const hpBarY = this.position.y + 10;
       const hpWidth = this.width * (this.health / this.maxHealth);
 
       this.hpBar.setSize(hpWidth, hpBarHeight);
@@ -342,7 +344,7 @@ export class Player {
 
     // Aggiorna nome
     if (this.nameText) {
-      this.nameText.setPosition(this.position.x, this.position.y - this.height - 10);
+      this.nameText.setPosition(this.position.x, this.position.y - this.height - 15);
       this.nameText.setVisible(true);
     }
 
