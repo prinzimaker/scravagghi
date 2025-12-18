@@ -1,3 +1,5 @@
+import { WeaponDefinitions, WeaponType } from '../weapons/WeaponSystem.js';
+
 /**
  * Sistema di fisica per proiettili balistici e collisioni
  */
@@ -15,11 +17,20 @@ export class Physics {
    * @param {TerrainMask} terrain - Mappa del terreno
    * @param {Array<Beetle>} beetles - Array di scarabei per collision detection
    * @param {DeterministicRandom} rng - Generatore casuale deterministico
+   * @param {Object} weaponDef - Definizione dell'arma (opzionale)
    * @returns {Object} Risultato della simulazione
    */
-  static simulateShot(startX, startY, angle, power, maxVelocity, terrain, beetles, rng) {
+  static simulateShot(startX, startY, angle, power, maxVelocity, terrain, beetles, rng, weaponDef = null) {
+    // Usa i valori dell'arma se disponibili, altrimenti default
+    const gravity = weaponDef ? weaponDef.gravity : Physics.GRAVITY;
+    const actualMaxVelocity = weaponDef ? weaponDef.maxVelocity : maxVelocity;
+    const bounces = weaponDef ? weaponDef.bounces : false;
+    const bounceDecay = weaponDef ? (weaponDef.bounceDecay || 0.6) : 0.6;
+    const maxBounces = weaponDef ? (weaponDef.maxBounces || 5) : 5;
+    const explodeOnImpact = weaponDef ? weaponDef.explodeOnImpact : true;
+
     // Calcola velocità iniziale
-    const velocity = power * maxVelocity;
+    const velocity = power * actualMaxVelocity;
     const angleRad = (angle * Math.PI) / 180;
     let vx = Math.cos(angleRad) * velocity;
     let vy = -Math.sin(angleRad) * velocity; // -sin perché Y cresce verso il basso
@@ -27,52 +38,86 @@ export class Physics {
     // Stato iniziale
     let x = startX;
     let y = startY;
-    const trajectory = [{ x, y, t: 0 }];
+    const trajectory = [{ x, y, t: 0, event: 'start' }];
 
     let impactPoint = null;
     let hitBeetle = null;
     let maxHeight = startY;
     let time = 0;
+    let bounceCount = 0;
 
     // Simula fino a impatto o fuori schermo
-    const maxIterations = 1000;
+    const maxIterations = 2000; // Aumentato per traiettorie più lunghe
     for (let i = 0; i < maxIterations; i++) {
       // Aggiorna velocità (gravità)
-      vy += Physics.GRAVITY * Physics.TIME_STEP;
+      vy += gravity * Physics.TIME_STEP;
 
       // Aggiorna posizione
+      const prevX = x;
+      const prevY = y;
       x += vx * Physics.TIME_STEP;
       y += vy * Physics.TIME_STEP;
       time += Physics.TIME_STEP;
-
-      trajectory.push({ x, y, t: time });
 
       // Track max height
       if (y < maxHeight) maxHeight = y;
 
       // Check fuori schermo
       if (x < 0 || x > terrain.width || y > terrain.height) {
+        trajectory.push({ x, y, t: time, event: 'offscreen' });
         break;
       }
 
       // Check collisione con terreno
       if (terrain.isSolid(Math.floor(x), Math.floor(y))) {
-        impactPoint = { x, y };
-        break;
+        if (bounces && bounceCount < maxBounces && !explodeOnImpact) {
+          // Calcola la normale del terreno per il rimbalzo
+          const normal = Physics.getTerrainNormal(terrain, Math.floor(x), Math.floor(y));
+
+          // Rimbalza
+          const dotProduct = vx * normal.x + vy * normal.y;
+          vx = (vx - 2 * dotProduct * normal.x) * bounceDecay;
+          vy = (vy - 2 * dotProduct * normal.y) * bounceDecay;
+
+          // Torna alla posizione precedente e sposta leggermente nella direzione della normale
+          x = prevX + normal.x * 2;
+          y = prevY + normal.y * 2;
+
+          bounceCount++;
+          trajectory.push({ x, y, t: time, event: 'bounce', bounceCount });
+
+          // Se la velocità è troppo bassa, fermati
+          const speed = Math.sqrt(vx * vx + vy * vy);
+          if (speed < 20) {
+            impactPoint = { x, y };
+            trajectory.push({ x, y, t: time, event: 'stopped' });
+            break;
+          }
+        } else {
+          // Impatto finale
+          impactPoint = { x, y };
+          trajectory.push({ x, y, t: time, event: 'impact' });
+          break;
+        }
+      } else {
+        trajectory.push({ x, y, t: time });
       }
 
-      // Check collisione con beetle
-      for (const beetle of beetles) {
-        if (!beetle.isAlive) continue;
+      // Check collisione con beetle (solo se esplode all'impatto)
+      if (explodeOnImpact) {
+        for (const beetle of beetles) {
+          if (!beetle.isAlive) continue;
 
-        const dx = x - beetle.x;
-        const dy = y - beetle.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+          const dx = x - beetle.x;
+          const dy = y - beetle.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < beetle.width / 2) {
-          impactPoint = { x, y };
-          hitBeetle = beetle;
-          break;
+          if (distance < beetle.width / 2) {
+            impactPoint = { x, y };
+            hitBeetle = beetle;
+            trajectory.push({ x, y, t: time, event: 'hit_player' });
+            break;
+          }
         }
       }
 
@@ -88,23 +133,64 @@ export class Physics {
         Math.pow(impactPoint.x - startX, 2) +
         Math.pow(impactPoint.y - startY, 2)
       ) : 0,
-      duration: time
+      duration: time,
+      bounceCount
     };
+  }
+
+  /**
+   * Calcola la normale del terreno in un punto
+   */
+  static getTerrainNormal(terrain, x, y) {
+    // Campiona i punti circostanti per determinare la normale
+    const samples = [
+      { dx: -1, dy: 0 },
+      { dx: 1, dy: 0 },
+      { dx: 0, dy: -1 },
+      { dx: 0, dy: 1 }
+    ];
+
+    let nx = 0;
+    let ny = 0;
+
+    for (const sample of samples) {
+      const sx = x + sample.dx;
+      const sy = y + sample.dy;
+      if (!terrain.isSolid(sx, sy)) {
+        nx += sample.dx;
+        ny += sample.dy;
+      }
+    }
+
+    // Normalizza
+    const length = Math.sqrt(nx * nx + ny * ny);
+    if (length > 0) {
+      nx /= length;
+      ny /= length;
+    } else {
+      // Default: normale verso l'alto
+      nx = 0;
+      ny = -1;
+    }
+
+    return { x: nx, y: ny };
   }
 
   /**
    * Calcola la percentuale di danno in base alla distanza dall'esplosione
    * Curva personalizzata: 0px=100%, 20px=60%, 40px=20%
    * @param {number} distance - Distanza dal centro dell'esplosione in pixel
+   * @param {number} radius - Raggio dell'esplosione (default 40)
    * @returns {number} Percentuale di danno [0-100]
    */
-  static calculateDamagePercent(distance) {
+  static calculateDamagePercent(distance, radius = 40) {
     // Colpo diretto (entro 5 pixel) = 100%
     if (distance <= 5) return 100;
 
-    // Curva lineare: damagePercent = 100 - (distance * 2)
-    // 0px: 100%, 20px: 60%, 40px: 20%
-    const damagePercent = Math.max(0, 100 - (distance * 2));
+    // Curva lineare basata sul raggio dell'esplosione
+    // Al centro = 100%, al bordo = 20%
+    const falloffRate = 80 / radius; // Quanto danno perde per pixel
+    const damagePercent = Math.max(0, 100 - (distance * falloffRate));
 
     return damagePercent;
   }
@@ -114,12 +200,15 @@ export class Physics {
    * Il danno è calcolato come percentuale del HP massimo del beetle
    * @param {number} centerX - Centro X esplosione
    * @param {number} centerY - Centro Y esplosione
-   * @param {number} radius - Raggio esplosione (40 pixel)
+   * @param {number} radius - Raggio esplosione
    * @param {Array<Beetle>} beetles - Array di scarabei
-   * @returns {Array} Array di danni applicati {beetle, damage, distance, percent}
+   * @param {Object} weaponDef - Definizione dell'arma (opzionale)
+   * @returns {Array} Array di danni applicati {beetle, damage, distance, percent, knockback}
    */
-  static applyExplosionDamage(centerX, centerY, radius, beetles) {
+  static applyExplosionDamage(centerX, centerY, radius, beetles, weaponDef = null) {
     const damages = [];
+    const baseDamagePercent = weaponDef ? weaponDef.damage : 30; // Danno base dell'arma (default pallina di cacca)
+    const knockbackMultiplier = weaponDef ? weaponDef.knockbackMultiplier : 1.0;
 
     for (const beetle of beetles) {
       if (!beetle.isAlive) continue;
@@ -130,14 +219,26 @@ export class Physics {
 
       if (distance < radius) {
         // Calcola percentuale di danno in base alla distanza
-        const damagePercent = Physics.calculateDamagePercent(distance);
+        const distancePercent = Physics.calculateDamagePercent(distance, radius);
+
+        // Calcola il danno effettivo:
+        // (danno base arma) * (percentuale distanza / 100)
+        // Es: Bazooka (85%) a distanza 0 = 85% del max HP
+        // Es: Bazooka (85%) a distanza che da 60% = 85% * 0.6 = 51% del max HP
+        const effectiveDamagePercent = baseDamagePercent * (distancePercent / 100);
 
         // Applica la percentuale all'HP massimo del beetle
-        const damage = Math.ceil((beetle.maxHp * damagePercent) / 100);
+        const damage = Math.ceil((beetle.maxHp * effectiveDamagePercent) / 100);
 
         if (damage > 0) {
           beetle.takeDamage(damage);
-          damages.push({ beetle, damage, distance, percent: damagePercent });
+          damages.push({
+            beetle,
+            damage,
+            distance,
+            percent: effectiveDamagePercent,
+            knockbackMultiplier
+          });
         }
       }
     }

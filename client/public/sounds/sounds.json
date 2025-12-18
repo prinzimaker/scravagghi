@@ -1,9 +1,38 @@
 {
   "byte": {
-    "low": [],
-    "med": [],
-    "hig": []
+    "low": [
+      "CANNA.WAV",
+      "CRETINO1.WAV",
+      "NUMMEROM.WAV",
+      "SUCATI.WAV"
+    ],
+    "med": [
+      "BECCO.WAV",
+      "CAGATO.WAV",
+      "FRENGO.WAV",
+      "MIDOLORE.WAV",
+      "PRRRT.WAV"
+    ],
+    "hig": [
+      "CURNUTU.WAV",
+      "FANGO3.WAV",
+      "OEEEEEEE.WAV"
+    ]
   },
-  "kill": [],
-  "frust": []
+  "kill": [
+    "BONASERA.WAV",
+    "CORNUTO3.WAV",
+    "NONNO.WAV",
+    "STFIGHT1.WAV",
+    "VAFFCUL.WAV"
+  ],
+  "frust": [
+    "ALLUCINA.WAV",
+    "ATTENDER.WAV",
+    "BLEAH.WAV",
+    "MADCOW.WAV",
+    "MINCHIA2.WAV",
+    "TESTCAZZ.WAV",
+    "VAFFCUL2.WAV"
+  ]
 }

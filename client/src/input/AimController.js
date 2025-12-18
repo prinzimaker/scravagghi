@@ -1,3 +1,5 @@
+import { WeaponDefinitions, WeaponType } from '../weapons/WeaponSystem.js';
+
 /**
  * Gestisce il mirino e l'input dell'utente per sparare
  */
@@ -10,12 +12,18 @@ export class AimController {
     this.minAngle = 5; // Quasi orizzontale a destra
     this.maxAngle = 175; // Quasi orizzontale a sinistra
 
+    // Arma corrente
+    this.currentWeapon = WeaponType.POOP_BALL;
+    this.currentWeaponDef = WeaponDefinitions[WeaponType.POOP_BALL];
+
     // Grafica
     this.aimLine = null;
     this.powerBar = null;
     this.powerBarBg = null;
     this.angleText = null;
     this.powerText = null;
+    this.weaponIcon = null;
+    this.weaponName = null;
 
     // Input
     this.cursors = null;
@@ -51,9 +59,20 @@ export class AimController {
 
     // Barra della potenza (in alto a sinistra)
     const barX = 20;
-    const barY = 80;
+    const barY = 110;
     const barWidth = 200;
     const barHeight = 20;
+
+    // Icona e nome arma (sopra la barra)
+    this.weaponIcon = this.scene.add.text(barX, barY - 55, '💩', {
+      fontSize: '32px'
+    });
+
+    this.weaponName = this.scene.add.text(barX + 45, barY - 50, 'Pallina di Cacca', {
+      fontSize: '14px',
+      fill: '#ffff00',
+      fontStyle: 'bold'
+    });
 
     this.powerBarBg = this.scene.add.rectangle(
       barX,
@@ -87,6 +106,22 @@ export class AimController {
   }
 
   /**
+   * Imposta l'arma corrente
+   */
+  setWeapon(weaponType, weaponDef) {
+    this.currentWeapon = weaponType;
+    this.currentWeaponDef = weaponDef;
+
+    // Aggiorna UI
+    if (this.weaponIcon) {
+      this.weaponIcon.setText(weaponDef.icon);
+    }
+    if (this.weaponName) {
+      this.weaponName.setText(weaponDef.name);
+    }
+  }
+
+  /**
    * Inizia la carica del colpo
    */
   startCharging() {
@@ -112,7 +147,9 @@ export class AimController {
     // Notifica la scene che il colpo è stato sparato
     this.scene.events.emit('shot-fired', {
       angle: this.angle,
-      power: this.power
+      power: this.power,
+      weaponType: this.currentWeapon,
+      weaponDef: this.currentWeaponDef
     });
 
     this.stopAiming();
@@ -154,6 +191,8 @@ export class AimController {
     if (this.powerBarBg) this.powerBarBg.setVisible(visible);
     if (this.angleText) this.angleText.setVisible(visible);
     if (this.powerText) this.powerText.setVisible(visible);
+    if (this.weaponIcon) this.weaponIcon.setVisible(visible);
+    if (this.weaponName) this.weaponName.setVisible(visible);
   }
 
   /**
