@@ -197,26 +197,85 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Renderizza il terreno come texture
+   * Renderizza il terreno come texture (campagna erbosa)
    */
   renderTerrain() {
     // Crea texture per il terreno
     const graphics = this.add.graphics();
     graphics.setDepth(0); // Terreno in fondo
 
+    // Trova la superficie per ogni colonna (per disegnare l'erba)
+    const surfaceY = [];
+    for (let x = 0; x < this.gameWidth; x++) {
+      surfaceY[x] = this.terrain.getGroundY(x);
+    }
+
     // Disegna il terreno pixel per pixel
     for (let x = 0; x < this.gameWidth; x++) {
       for (let y = 0; y < this.gameHeight; y++) {
         if (this.terrain.isSolid(x, y)) {
-          // Colore variabile per dare texture
-          const shade = ((x + y) % 10) * 10;
+          // Calcola profondità dalla superficie
+          const depth = y - surfaceY[x];
+
+          // Noise per variazione naturale
+          const noise = ((x * 7 + y * 13) % 20) / 20;
+          const noise2 = ((x * 11 + y * 3) % 15) / 15;
+
+          let r, g, b;
+
+          if (depth < 3) {
+            // ERBA - superficie (verde brillante)
+            const grassShade = 20 + noise * 30;
+            r = 50 + grassShade * 0.3;
+            g = 140 + grassShade;
+            b = 40 + grassShade * 0.2;
+          } else if (depth < 8) {
+            // RADICI/TERRA SUPERFICIALE (marrone chiaro con verde)
+            const soilShade = noise * 25;
+            r = 100 + soilShade;
+            g = 80 + soilShade * 0.7 + (8 - depth) * 5; // sfumatura verde
+            b = 50 + soilShade * 0.3;
+          } else if (depth < 25) {
+            // TERRA (marrone medio)
+            const earthShade = noise * 20 + noise2 * 10;
+            r = 120 + earthShade;
+            g = 85 + earthShade * 0.6;
+            b = 55 + earthShade * 0.3;
+          } else {
+            // TERRA PROFONDA/ROCCIA (marrone scuro)
+            const rockShade = noise * 15;
+            r = 90 + rockShade;
+            g = 70 + rockShade * 0.5;
+            b = 50 + rockShade * 0.3;
+          }
+
           const color = Phaser.Display.Color.GetColor(
-            100 + shade,
-            80 + shade,
-            40 + shade
+            Math.floor(r),
+            Math.floor(g),
+            Math.floor(b)
           );
           graphics.fillStyle(color, 1);
           graphics.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+
+    // Aggiungi fili d'erba sulla superficie
+    for (let x = 0; x < this.gameWidth; x += 2) {
+      const groundY = surfaceY[x];
+      if (groundY < this.gameHeight) {
+        // Altezza variabile dell'erba
+        const grassHeight = 3 + Math.floor(((x * 7) % 5));
+        const grassColor = Phaser.Display.Color.GetColor(
+          30 + ((x * 3) % 30),
+          120 + ((x * 7) % 40),
+          20 + ((x * 11) % 20)
+        );
+
+        graphics.fillStyle(grassColor, 0.8);
+        for (let i = 0; i < grassHeight; i++) {
+          const offsetX = Math.floor(Math.sin(x * 0.1 + i * 0.5) * 1);
+          graphics.fillRect(x + offsetX, groundY - i - 1, 1, 1);
         }
       }
     }
@@ -229,16 +288,60 @@ export class GameScene extends Phaser.Scene {
    */
   updateTerrainGraphics(x, y, radius) {
     // Ridisegna solo l'area modificata
-    const minX = Math.max(0, x - radius);
-    const maxX = Math.min(this.gameWidth, x + radius);
-    const minY = Math.max(0, y - radius);
-    const maxY = Math.min(this.gameHeight, y + radius);
+    const minX = Math.max(0, x - radius - 5);
+    const maxX = Math.min(this.gameWidth, x + radius + 5);
+    const minY = Math.max(0, y - radius - 5);
+    const maxY = Math.min(this.gameHeight, y + radius + 5);
 
     for (let px = minX; px < maxX; px++) {
+      // Trova la nuova superficie per questa colonna
+      const surfaceY = this.terrain.getGroundY(px);
+
       for (let py = minY; py < maxY; py++) {
         if (!this.terrain.isSolid(px, py)) {
-          // Cancella il pixel
+          // Cancella il pixel (sfondo scuro)
           this.terrainGraphics.fillStyle(0x1a1a2e, 1);
+          this.terrainGraphics.fillRect(px, py, 1, 1);
+        } else {
+          // Ridisegna con colori erbosi
+          const depth = py - surfaceY;
+          const noise = ((px * 7 + py * 13) % 20) / 20;
+          const noise2 = ((px * 11 + py * 3) % 15) / 15;
+
+          let r, g, b;
+
+          if (depth < 3) {
+            // ERBA
+            const grassShade = 20 + noise * 30;
+            r = 50 + grassShade * 0.3;
+            g = 140 + grassShade;
+            b = 40 + grassShade * 0.2;
+          } else if (depth < 8) {
+            // RADICI/TERRA SUPERFICIALE
+            const soilShade = noise * 25;
+            r = 100 + soilShade;
+            g = 80 + soilShade * 0.7 + (8 - depth) * 5;
+            b = 50 + soilShade * 0.3;
+          } else if (depth < 25) {
+            // TERRA
+            const earthShade = noise * 20 + noise2 * 10;
+            r = 120 + earthShade;
+            g = 85 + earthShade * 0.6;
+            b = 55 + earthShade * 0.3;
+          } else {
+            // TERRA PROFONDA
+            const rockShade = noise * 15;
+            r = 90 + rockShade;
+            g = 70 + rockShade * 0.5;
+            b = 50 + rockShade * 0.3;
+          }
+
+          const color = Phaser.Display.Color.GetColor(
+            Math.floor(r),
+            Math.floor(g),
+            Math.floor(b)
+          );
+          this.terrainGraphics.fillStyle(color, 1);
           this.terrainGraphics.fillRect(px, py, 1, 1);
         }
       }
