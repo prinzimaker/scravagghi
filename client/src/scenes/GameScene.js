@@ -74,13 +74,25 @@ export class GameScene extends Phaser.Scene {
     this.aimController = new AimController(this);
     this.aimController.create();
 
+    // Crea tutti i tasti in un unico punto (evita duplicati)
+    this.keys = {
+      left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
+      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
+      up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+      down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
+      space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+      enter: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
+      esc: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+    };
+
+    // Passa i tasti all'AimController
+    this.aimController.setKeys(this.keys);
+
     // Inizializza selettore armi
     this.weaponSelector = new WeaponSelector(this);
     this.weaponSelector.create();
+    this.weaponSelector.setKeys(this.keys);
     this.isSelectingWeapon = false;
-
-    // Tasto ENTER per aprire selettore armi
-    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
 
     // Listener per colpo sparato
     this.events.on('shot-fired', this.handleShot, this);
@@ -1169,7 +1181,7 @@ export class GameScene extends Phaser.Scene {
 
     // Gestione apertura selettore armi con ENTER
     if (this.gamePhase === 'aiming' && !this.isSelectingWeapon && this.activePlayer) {
-      if (Phaser.Input.Keyboard.JustDown(this.enterKey)) {
+      if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
         this.openWeaponSelector();
       }
     }

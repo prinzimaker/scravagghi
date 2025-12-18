@@ -26,28 +26,38 @@ export class AimController {
     this.weaponName = null;
 
     // Input
-    this.cursors = null;
-    this.spaceKey = null;
+    this.keys = null; // Riferimento ai tasti condivisi
     this.isCharging = false;
     this.chargeStartTime = 0;
     this.maxChargeTime = 2000; // 2 secondi per carica massima
   }
 
   /**
-   * Inizializza l'input
+   * Inizializza grafica
    */
   create() {
-    this.cursors = this.scene.input.keyboard.createCursorKeys();
-    this.spaceKey = this.scene.input.keyboard.addKey(
-      Phaser.Input.Keyboard.KeyCodes.SPACE
-    );
-
     // Crea grafica mirino
     this.createAimGraphics();
+  }
+
+  /**
+   * Imposta i tasti condivisi (chiamato da GameScene)
+   */
+  setKeys(keys) {
+    this.keys = keys;
 
     // Event listener per spazio
-    this.spaceKey.on('down', () => this.startCharging());
-    this.spaceKey.on('up', () => this.releaseShot());
+    if (this.keys.space) {
+      this.keys.space.on('down', () => this.startCharging());
+      this.keys.space.on('up', () => this.releaseShot());
+    }
+  }
+
+  /**
+   * Getter per compatibilità con GameScene (per il movimento)
+   */
+  get cursors() {
+    return this.keys;
   }
 
   /**

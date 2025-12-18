@@ -240,6 +240,7 @@ export class WeaponSelector {
     this.onWeaponSelected = null;
     this.selectedIndex = 0;
     this.inputEnabled = false;
+    this.keys = null; // Riferimento ai tasti condivisi
   }
 
   /**
@@ -287,9 +288,13 @@ export class WeaponSelector {
     });
     instructions.setOrigin(0.5);
     this.container.add(instructions);
+  }
 
-    // Input handling
-    this.setupInput();
+  /**
+   * Imposta i riferimenti ai tasti (chiamato da GameScene)
+   */
+  setKeys(keys) {
+    this.keys = keys;
   }
 
   /**
@@ -331,17 +336,6 @@ export class WeaponSelector {
       ammoText,
       index
     };
-  }
-
-  /**
-   * Configura l'input
-   */
-  setupInput() {
-    // Tasti per navigazione
-    this.leftKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
-    this.rightKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
-    this.enterKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
-    this.escKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
   }
 
   /**
@@ -493,19 +487,19 @@ export class WeaponSelector {
    * Update chiamato ogni frame
    */
   update() {
-    if (!this.inputEnabled) return;
+    if (!this.inputEnabled || !this.keys) return;
 
-    // Navigazione con tastiera
-    if (Phaser.Input.Keyboard.JustDown(this.leftKey)) {
+    // Navigazione con tastiera (usa i tasti condivisi)
+    if (Phaser.Input.Keyboard.JustDown(this.keys.left)) {
       this.selectPrevious();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.rightKey)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.right)) {
       this.selectNext();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.enterKey)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
       this.confirmSelection();
     }
-    if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
+    if (Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
       this.cancel();
     }
   }
