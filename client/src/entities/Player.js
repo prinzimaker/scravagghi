@@ -1,3 +1,5 @@
+import { WeaponInventory } from '../weapons/WeaponSystem.js';
+
 /**
  * Rappresenta un giocatore nella partita
  */
@@ -13,8 +15,8 @@ export class Player {
     this.health = 100;
     this.maxHealth = 100;
 
-    // Armi disponibili
-    this.weapons = ['grenade']; // Per ora solo granata
+    // Inventario armi
+    this.weaponInventory = new WeaponInventory();
 
     // Posizione
     this.position = { x, y };

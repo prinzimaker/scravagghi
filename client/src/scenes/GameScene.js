@@ -4,6 +4,7 @@ import { Physics } from '../physics/Physics.js';
 import { AimController } from '../input/AimController.js';
 import { DeterministicRandom } from '../utils/DeterministicRandom.js';
 import { SoundManager } from '../managers/SoundManager.js';
+import { WeaponSelector, WeaponDefinitions, WeaponType } from '../weapons/WeaponSystem.js';
 
 /**
  * Scena principale del gioco
@@ -72,6 +73,11 @@ export class GameScene extends Phaser.Scene {
     // Inizializza controller di mira
     this.aimController = new AimController(this);
     this.aimController.create();
+
+    // Inizializza selettore armi
+    this.weaponSelector = new WeaponSelector(this);
+    this.weaponSelector.create();
+    this.isSelectingWeapon = false;
 
     // Listener per colpo sparato
     this.events.on('shot-fired', this.handleShot, this);
@@ -241,7 +247,7 @@ export class GameScene extends Phaser.Scene {
 
     // Istruzioni
     this.instructionsText = this.add.text(10, this.gameHeight - 100,
-      '↑↓: Angolo | ←→: Muovi giocatore | SPAZIO: Carica e spara (timer si ferma)', {
+      '↑↓: Angolo | ←→: Muovi | SPAZIO: Spara | Mouse in basso: Cambia arma', {
       fontSize: '14px',
       fill: '#fff',
       backgroundColor: '#000000aa',
@@ -250,7 +256,7 @@ export class GameScene extends Phaser.Scene {
 
     // Info aggiuntivo
     this.infoText = this.add.text(10, this.gameHeight - 70,
-      'La barra verde sotto il giocatore mostra la vita', {
+      'Il timer si ferma durante la carica e la selezione arma', {
       fontSize: '12px',
       fill: '#00ff00',
       backgroundColor: '#000000aa',
@@ -339,6 +345,11 @@ export class GameScene extends Phaser.Scene {
       flipped
     );
 
+    // Imposta l'arma corrente del giocatore nell'AimController
+    const currentWeapon = selectedPlayer.weaponInventory.getCurrentWeapon();
+    const currentWeaponDef = selectedPlayer.weaponInventory.getCurrentWeaponDef();
+    this.aimController.setWeapon(currentWeapon, currentWeaponDef);
+
     this.updateUI();
 
     // Reset del flag SOLO quando il turno è completamente avviato
@@ -353,14 +364,26 @@ export class GameScene extends Phaser.Scene {
 
     this.gamePhase = 'shooting';
 
+    // Ottieni l'arma corrente
+    const weaponType = shotData.weaponType || WeaponType.POOP_BALL;
+    const weaponDef = shotData.weaponDef || WeaponDefinitions[WeaponType.POOP_BALL];
+
+    // Usa una munizione
+    this.activePlayer.weaponInventory.useAmmo(weaponType);
+
+    // Gestisci armi speciali (dinamite = posizionamento)
+    if (weaponDef.launchType === 'place') {
+      this.handleDynamitePlacement(weaponDef);
+      return;
+    }
+
     // Simula il colpo
     const rng = new DeterministicRandom(this.turnSeed);
-    const maxVelocity = 1200;
 
     const startX = this.activePlayer.position.x;
     const startY = this.activePlayer.position.y - this.activePlayer.height;
 
-    // Converti players in formato compatibile con Physics (per ora)
+    // Converti players in formato compatibile con Physics
     const beetlesCompat = this.players.map(p => ({
       x: p.position.x,
       y: p.position.y,
@@ -379,12 +402,18 @@ export class GameScene extends Phaser.Scene {
       startY,
       shotData.angle,
       shotData.power,
-      maxVelocity,
+      weaponDef.maxVelocity,
       this.terrain,
       beetlesCompat,
-      rng
+      rng,
+      weaponDef // Passa la definizione dell'arma
     );
 
+    // Salva info arma per l'impatto
+    result.weaponDef = weaponDef;
+    result.weaponType = weaponType;
+
+    console.log(`🔫 ${weaponDef.name} fired!`);
     console.log('Trajectory points:', result.trajectory.length);
     console.log('Impact:', result.impactPoint);
 
@@ -393,20 +422,141 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Gestisce il posizionamento della dinamite
+   */
+  handleDynamitePlacement(weaponDef) {
+    const x = this.activePlayer.position.x;
+    const y = this.activePlayer.position.y;
+
+    console.log(`🧨 Dynamite placed at (${x}, ${y})`);
+
+    // Crea sprite dinamite
+    const dynamite = this.add.text(x, y - 20, '🧨', {
+      fontSize: '24px'
+    });
+    dynamite.setOrigin(0.5);
+    dynamite.setDepth(15);
+
+    // Timer countdown visivo
+    let countdown = 5;
+    const countdownText = this.add.text(x, y - 45, `${countdown}`, {
+      fontSize: '20px',
+      fill: '#ff0000',
+      fontStyle: 'bold'
+    });
+    countdownText.setOrigin(0.5);
+    countdownText.setDepth(15);
+
+    // Countdown timer
+    const countdownTimer = this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        countdown--;
+        countdownText.setText(`${countdown}`);
+
+        if (countdown <= 0) {
+          countdownTimer.remove();
+          dynamite.destroy();
+          countdownText.destroy();
+
+          // Esplosione!
+          this.handleDelayedExplosion(x, y, weaponDef);
+        }
+      },
+      loop: true
+    });
+
+    // Termina il turno immediatamente (la dinamite esploderà dopo)
+    this.endTurn();
+  }
+
+  /**
+   * Gestisce un'esplosione ritardata (granata/dinamite)
+   */
+  handleDelayedExplosion(x, y, weaponDef) {
+    console.log(`💥 Delayed explosion at (${x}, ${y})`);
+
+    const explosionRadius = weaponDef.explosionRadius;
+
+    // Effetto esplosione
+    const explosion = this.add.circle(x, y, explosionRadius, 0xff6600, 0.7);
+    explosion.setDepth(1);
+
+    this.tweens.add({
+      targets: explosion,
+      alpha: 0,
+      scale: 1.5,
+      duration: 500,
+      onComplete: () => explosion.destroy()
+    });
+
+    // Scava cratere
+    this.terrain.excavate(x, y, explosionRadius);
+    this.updateTerrainGraphics(x, y, explosionRadius);
+
+    // Converti players per Physics
+    const beetlesCompat = this.players.map(p => ({
+      x: p.position.x,
+      y: p.position.y,
+      width: p.width,
+      height: p.height,
+      isAlive: p.isAlive(),
+      maxHp: p.maxHealth,
+      takeDamage: (dmg) => p.takeDamage(dmg),
+      hp: p.health,
+      id: p.id,
+      player: p
+    }));
+
+    // Applica danni con l'arma specifica
+    const damages = Physics.applyExplosionDamage(x, y, explosionRadius, beetlesCompat, weaponDef);
+
+    // Processa i danni
+    this.processExplosionDamages(damages, x, y, weaponDef);
+
+    // Applica gravità ai players
+    this.players.forEach(player => {
+      const beetleCompat = {
+        x: player.position.x,
+        y: player.position.y,
+        isAlive: player.isAlive(),
+        moveTo: (nx, ny) => player.moveTo(nx, ny)
+      };
+
+      if (Physics.applyGravityToBeetle(beetleCompat, this.terrain)) {
+        player.updateSprite();
+      }
+    });
+  }
+
+  /**
    * Anima il proiettile lungo la traiettoria
    */
   animateProjectile(result) {
-    // Crea il proiettile
-    const projectile = this.add.circle(
-      result.trajectory[0].x,
-      result.trajectory[0].y,
-      4,
-      0xffff00
-    );
+    const weaponDef = result.weaponDef || WeaponDefinitions[WeaponType.POOP_BALL];
+
+    // Crea il proiettile con l'icona dell'arma
+    let projectile;
+    if (weaponDef.icon) {
+      projectile = this.add.text(
+        result.trajectory[0].x,
+        result.trajectory[0].y,
+        weaponDef.icon,
+        { fontSize: '16px' }
+      );
+      projectile.setOrigin(0.5);
+    } else {
+      projectile = this.add.circle(
+        result.trajectory[0].x,
+        result.trajectory[0].y,
+        4,
+        0xffff00
+      );
+    }
     projectile.setDepth(5); // Sopra terreno, visibile durante volo
 
     let currentPoint = 0;
-    const animSpeed = 0.9; // Punti per frame (ridotto al 30% per animazione più lenta)
+    const animSpeed = 0.9; // Punti per frame
 
     // Timer per animazione
     const timer = this.time.addEvent({
@@ -420,16 +570,21 @@ export class GameScene extends Phaser.Scene {
           timer.remove();
 
           if (result.impactPoint) {
-            this.handleImpact(result);
+            // Gestisci esplosione ritardata per granate
+            if (weaponDef.delayedExplosion && !weaponDef.explodeOnImpact) {
+              this.handleGrenadeStop(result.impactPoint.x, result.impactPoint.y, weaponDef);
+            } else {
+              this.handleImpact(result);
+            }
           } else {
             // Nessun impatto (fuori schermo) → Frustrazione!
             console.log('😤 Shot went off-screen without hitting anything');
             if (this.soundManager) {
               this.soundManager.onOffTarget();
             }
+            this.endTurn();
           }
 
-          this.endTurn();
           return;
         }
 
@@ -441,14 +596,60 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Gestisce la granata che si ferma (esplosione ritardata)
+   */
+  handleGrenadeStop(x, y, weaponDef) {
+    console.log(`💣 Grenade stopped at (${x}, ${y}), exploding in ${weaponDef.explosionDelay / 1000}s`);
+
+    // Crea sprite granata ferma
+    const grenade = this.add.text(x, y, weaponDef.icon, {
+      fontSize: '20px'
+    });
+    grenade.setOrigin(0.5);
+    grenade.setDepth(15);
+
+    // Timer countdown visivo
+    let countdown = Math.ceil(weaponDef.explosionDelay / 1000);
+    const countdownText = this.add.text(x, y - 25, `${countdown}`, {
+      fontSize: '16px',
+      fill: '#ff0000',
+      fontStyle: 'bold'
+    });
+    countdownText.setOrigin(0.5);
+    countdownText.setDepth(15);
+
+    // Termina il turno
+    this.endTurn();
+
+    // Countdown timer
+    const countdownTimer = this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        countdown--;
+        countdownText.setText(`${countdown}`);
+
+        if (countdown <= 0) {
+          countdownTimer.remove();
+          grenade.destroy();
+          countdownText.destroy();
+
+          // Esplosione!
+          this.handleDelayedExplosion(x, y, weaponDef);
+        }
+      },
+      loop: true
+    });
+  }
+
+  /**
    * Gestisce l'impatto del proiettile
    */
   handleImpact(result) {
-    const { impactPoint, hitBeetle } = result;
+    const { impactPoint, hitBeetle, weaponDef } = result;
+    const weapon = weaponDef || WeaponDefinitions[WeaponType.POOP_BALL];
 
-    // Effetto esplosione
-    // Raggio 40px: 0-5px=100%, 20px=60%, 40px=20% del max HP
-    const explosionRadius = 40;
+    // Raggio esplosione dall'arma
+    const explosionRadius = weapon.explosionRadius;
 
     // Grafica esplosione
     const explosion = this.add.circle(
@@ -486,14 +687,40 @@ export class GameScene extends Phaser.Scene {
       player: p
     }));
 
-    // Applica danni
+    // Applica danni con l'arma specifica
     const damages = Physics.applyExplosionDamage(
       impactPoint.x,
       impactPoint.y,
       explosionRadius,
-      beetlesCompat
+      beetlesCompat,
+      weapon
     );
 
+    // Processa i danni
+    this.processExplosionDamages(damages, impactPoint.x, impactPoint.y, weapon);
+
+    // Applica gravità ai players
+    this.players.forEach(player => {
+      const beetleCompat = {
+        x: player.position.x,
+        y: player.position.y,
+        isAlive: player.isAlive(),
+        moveTo: (x, y) => player.moveTo(x, y)
+      };
+
+      if (Physics.applyGravityToBeetle(beetleCompat, this.terrain)) {
+        player.updateSprite();
+      }
+    });
+
+    // Termina il turno
+    this.endTurn();
+  }
+
+  /**
+   * Processa i danni da esplosione e applica effetti
+   */
+  processExplosionDamages(damages, impactX, impactY, weaponDef) {
     // Controlla se qualcuno è stato colpito
     if (damages.length === 0) {
       // NESSUN GIOCATORE COLPITO → Frustrazione!
@@ -501,6 +728,7 @@ export class GameScene extends Phaser.Scene {
       if (this.soundManager) {
         this.soundManager.onOffTarget();
       }
+      return;
     }
 
     // Traccia eventi audio (UN SOLO suono per esplosione)
@@ -508,7 +736,7 @@ export class GameScene extends Phaser.Scene {
     let maxIntensity = null;
 
     // Mostra danni (il danno è già stato applicato da Physics.applyExplosionDamage)
-    damages.forEach(({ beetle, damage, distance, percent }) => {
+    damages.forEach(({ beetle, damage, distance, percent, knockbackMultiplier }) => {
       const player = beetle.player; // Recupera il player originale
       player.updateSprite();
 
@@ -523,17 +751,19 @@ export class GameScene extends Phaser.Scene {
         console.log(`💔 ${player.name} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${player.health}/${player.maxHealth}`);
 
         // Traccia l'intensità massima del danno
-        const intensity = this.soundManager.calculateIntensity(damage, player.maxHealth);
-        if (!maxIntensity || this.getIntensityPriority(intensity) > this.getIntensityPriority(maxIntensity)) {
-          maxIntensity = intensity;
+        if (this.soundManager) {
+          const intensity = this.soundManager.calculateIntensity(damage, player.maxHealth);
+          if (!maxIntensity || this.getIntensityPriority(intensity) > this.getIntensityPriority(maxIntensity)) {
+            maxIntensity = intensity;
+          }
         }
       }
 
-      // KNOCKBACK: spostamento d'aria proporzionale al danno
+      // KNOCKBACK: spostamento d'aria proporzionale al danno e al moltiplicatore dell'arma
       if (player.isAlive()) {
         // Calcola direzione dall'impatto al player
-        const dx = player.position.x - impactPoint.x;
-        const dy = player.position.y - impactPoint.y;
+        const dx = player.position.x - impactX;
+        const dy = player.position.y - impactY;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
         if (dist > 0) {
@@ -541,8 +771,9 @@ export class GameScene extends Phaser.Scene {
           const dirX = dx / dist;
           const dirY = dy / dist;
 
-          // Forza knockback: proporzionale al percent del danno (max ~50px per 100% danno)
-          const knockbackForce = (percent / 100) * 50;
+          // Forza knockback: proporzionale al percent del danno e al moltiplicatore dell'arma
+          const baseKnockback = 50;
+          const knockbackForce = (percent / 100) * baseKnockback * (knockbackMultiplier || 1.0);
 
           // Calcola nuova posizione
           const newX = Math.max(20, Math.min(this.gameWidth - 20, player.position.x + dirX * knockbackForce));
@@ -595,20 +826,6 @@ export class GameScene extends Phaser.Scene {
         this.soundManager.onDamage(maxIntensity);
       }
     }
-
-    // Applica gravità ai players
-    this.players.forEach(player => {
-      const beetleCompat = {
-        x: player.position.x,
-        y: player.position.y,
-        isAlive: player.isAlive(),
-        moveTo: (x, y) => player.moveTo(x, y)
-      };
-
-      if (Physics.applyGravityToBeetle(beetleCompat, this.terrain)) {
-        player.updateSprite();
-      }
-    });
   }
 
   /**
@@ -761,6 +978,32 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Apre il selettore armi
+   */
+  openWeaponSelector() {
+    if (this.isSelectingWeapon || !this.activePlayer) return;
+
+    this.isSelectingWeapon = true;
+    console.log('🔫 Opening weapon selector');
+
+    // Mostra il selettore
+    this.weaponSelector.show(
+      this.activePlayer.weaponInventory,
+      (weaponType, weaponDef) => {
+        this.isSelectingWeapon = false;
+
+        if (weaponType && weaponDef) {
+          console.log(`🔫 Selected weapon: ${weaponDef.name}`);
+          // Aggiorna l'arma nell'AimController
+          this.aimController.setWeapon(weaponType, weaponDef);
+        } else {
+          console.log('🔫 Weapon selection cancelled');
+        }
+      }
+    );
+  }
+
+  /**
    * Aggiorna info debug
    */
   updateDebugInfo() {
@@ -785,12 +1028,24 @@ export class GameScene extends Phaser.Scene {
 
   update(time, delta) {
     // Aggiorna controller di mira
-    if (this.aimController) {
+    if (this.aimController && !this.isSelectingWeapon) {
       this.aimController.update(delta);
     }
 
+    // Aggiorna selettore armi
+    if (this.weaponSelector) {
+      this.weaponSelector.update();
+    }
+
+    // Gestione apertura selettore armi con mouse in basso
+    if (this.gamePhase === 'aiming' && !this.isSelectingWeapon && this.activePlayer) {
+      if (this.weaponSelector && this.weaponSelector.shouldShow()) {
+        this.openWeaponSelector();
+      }
+    }
+
     // Movimento laterale del player attivo con LEFT/RIGHT
-    if (this.gamePhase === 'aiming' && this.activePlayer && this.aimController.cursors) {
+    if (this.gamePhase === 'aiming' && this.activePlayer && this.aimController.cursors && !this.isSelectingWeapon) {
       const moveSpeed = 80;
       const deltaSeconds = delta / 1000;
 
@@ -815,14 +1070,16 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Aggiorna timer turno (si ferma quando si carica il colpo)
+    // Aggiorna timer turno (si ferma quando si carica il colpo O si seleziona arma)
     if (this.gamePhase === 'aiming') {
-      // Se si sta caricando, pausa il timer
-      if (this.aimController && this.aimController.isCharging) {
+      // Se si sta caricando O selezionando arma, pausa il timer
+      const shouldPause = (this.aimController && this.aimController.isCharging) || this.isSelectingWeapon;
+
+      if (shouldPause) {
         if (!this.timerPaused) {
           this.timerPaused = true;
           this.pausedTimeLeft = this.turnTimeLeft;
-          console.log('⏸️ Timer paused while charging');
+          console.log('⏸️ Timer paused');
         }
         // Mantieni il tempo congelato
         this.turnTimeLeft = this.pausedTimeLeft;
