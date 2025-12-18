@@ -79,6 +79,9 @@ export class GameScene extends Phaser.Scene {
     this.weaponSelector.create();
     this.isSelectingWeapon = false;
 
+    // Tasto ENTER per aprire selettore armi
+    this.enterKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+
     // Listener per colpo sparato
     this.events.on('shot-fired', this.handleShot, this);
 
@@ -247,7 +250,7 @@ export class GameScene extends Phaser.Scene {
 
     // Istruzioni
     this.instructionsText = this.add.text(10, this.gameHeight - 100,
-      '↑↓: Angolo | ←→: Muovi | SPAZIO: Spara | Mouse in basso: Cambia arma', {
+      '↑↓: Angolo | ←→: Muovi | SPAZIO: Spara | ENTER: Cambia arma', {
       fontSize: '14px',
       fill: '#fff',
       backgroundColor: '#000000aa',
@@ -1151,9 +1154,9 @@ export class GameScene extends Phaser.Scene {
       this.weaponSelector.update();
     }
 
-    // Gestione apertura selettore armi con mouse in basso
+    // Gestione apertura selettore armi con ENTER
     if (this.gamePhase === 'aiming' && !this.isSelectingWeapon && this.activePlayer) {
-      if (this.weaponSelector && this.weaponSelector.shouldShow()) {
+      if (Phaser.Input.Keyboard.JustDown(this.enterKey)) {
         this.openWeaponSelector();
       }
     }
