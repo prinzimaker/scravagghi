@@ -421,6 +421,12 @@ export class GameScene extends Phaser.Scene {
 
           if (result.impactPoint) {
             this.handleImpact(result);
+          } else {
+            // Nessun impatto (fuori schermo) → Frustrazione!
+            console.log('😤 Shot went off-screen without hitting anything');
+            if (this.soundManager) {
+              this.soundManager.onOffTarget();
+            }
           }
 
           this.endTurn();
@@ -488,6 +494,15 @@ export class GameScene extends Phaser.Scene {
       beetlesCompat
     );
 
+    // Controlla se qualcuno è stato colpito
+    if (damages.length === 0) {
+      // NESSUN GIOCATORE COLPITO → Frustrazione!
+      console.log('😤 Shot hit terrain but no players affected');
+      if (this.soundManager) {
+        this.soundManager.onOffTarget();
+      }
+    }
+
     // Mostra danni
     damages.forEach(({ beetle, damage, distance, percent }) => {
       const player = beetle.player; // Recupera il player originale
@@ -498,12 +513,23 @@ export class GameScene extends Phaser.Scene {
       if (player.isDead()) {
         console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
 
+        // EVENT: onDeath - Sempre quando muore un giocatore
+        if (wasAlive && this.soundManager) {
+          this.soundManager.onDeath();
+        }
+
         // Avvia fade out animato
         if (wasAlive) {
           player.fadeOut(this);
         }
       } else {
         console.log(`💔 ${player.name} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${player.health}/${player.maxHealth}`);
+
+        // EVENT: onDamage (con intensità basata sul danno)
+        if (this.soundManager) {
+          const intensity = this.soundManager.calculateIntensity(damage, player.maxHealth);
+          this.soundManager.onDamage(intensity);
+        }
       }
 
       // KNOCKBACK: spostamento d'aria proporzionale al danno
@@ -800,6 +826,11 @@ export class GameScene extends Phaser.Scene {
         this.activePlayer.takeDamage(penalty);
         this.activePlayer.updateSprite();
 
+        // EVENT: onTimeout - Frustrazione per tempo scaduto
+        if (this.soundManager) {
+          this.soundManager.onTimeout();
+        }
+
         // Mostra penalità
         const penaltyText = this.add.text(
           this.activePlayer.position.x,
@@ -838,6 +869,11 @@ export class GameScene extends Phaser.Scene {
         // Uccidi il player
         player.takeDamage(9999);
         player.updateSprite();
+
+        // EVENT: onDeath - Sempre quando muore un giocatore
+        if (this.soundManager) {
+          this.soundManager.onDeath();
+        }
 
         // Avvia fade out animato
         player.fadeOut(this);
