@@ -583,6 +583,100 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Per la palla di cacca, mostra animazione di creazione
+    if (weaponType === WeaponType.POOP_BALL) {
+      this.animatePoopCreation(shotData, weaponType, weaponDef);
+      return;
+    }
+
+    // Per altre armi, spara direttamente
+    this.fireProjectile(shotData, weaponType, weaponDef);
+  }
+
+  /**
+   * Animazione creazione palla di cacca
+   */
+  animatePoopCreation(shotData, weaponType, weaponDef) {
+    const playerX = this.activePlayer.position.x;
+    const playerY = this.activePlayer.position.y;
+
+    // Crea la pallina che "cresce"
+    const poopBall = this.add.text(playerX, playerY - 5, '💩', {
+      fontSize: '4px'
+    });
+    poopBall.setOrigin(0.5);
+    poopBall.setDepth(15);
+    poopBall.setAlpha(0);
+
+    // Anima le zampe velocemente durante la creazione
+    let animPhase = 0;
+    const legTimer = this.time.addEvent({
+      delay: 50,
+      callback: () => {
+        animPhase += 1;
+        this.activePlayer.drawLegs(animPhase);
+      },
+      repeat: 15
+    });
+
+    // Effetto "sforzo" - scarafaggio trema
+    this.tweens.add({
+      targets: this.activePlayer.container,
+      x: playerX + 1,
+      duration: 50,
+      yoyo: true,
+      repeat: 7,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Animazione crescita della pallina
+    this.tweens.add({
+      targets: poopBall,
+      alpha: 1,
+      duration: 200,
+      onComplete: () => {
+        // Scala da piccola a grande
+        this.tweens.add({
+          targets: poopBall,
+          fontSize: 16, // Non funziona così, uso scale
+          duration: 400
+        });
+      }
+    });
+
+    // Usa scale per far crescere
+    poopBall.setScale(0.3);
+    this.tweens.add({
+      targets: poopBall,
+      scale: 1.2,
+      duration: 600,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        // Piccolo "plop" finale
+        this.tweens.add({
+          targets: poopBall,
+          scale: 1,
+          duration: 100,
+          onComplete: () => {
+            // Rimuovi la pallina statica
+            poopBall.destroy();
+            legTimer.remove();
+
+            // Resetta le zampe
+            this.activePlayer.drawLegs(0);
+
+            // Ora spara il proiettile vero
+            this.fireProjectile(shotData, weaponType, weaponDef);
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * Spara il proiettile (dopo eventuale animazione)
+   */
+  fireProjectile(shotData, weaponType, weaponDef) {
     // Simula il colpo
     const rng = new DeterministicRandom(this.turnSeed);
 
