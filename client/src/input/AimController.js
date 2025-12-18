@@ -127,9 +127,33 @@ export class AimController {
   startCharging() {
     if (!this.isAiming) return;
 
+    // Armi con instantFire sparano immediatamente a potenza massima (grilletto)
+    if (this.currentWeaponDef && this.currentWeaponDef.instantFire) {
+      this.power = 1.0;
+      this.fireInstant();
+      return;
+    }
+
     this.isCharging = true;
     this.chargeStartTime = Date.now();
     this.power = 0;
+  }
+
+  /**
+   * Spara istantaneamente (per armi con grilletto)
+   */
+  fireInstant() {
+    if (!this.isAiming) return;
+
+    // Notifica la scene che il colpo è stato sparato
+    this.scene.events.emit('shot-fired', {
+      angle: this.angle,
+      power: this.power,
+      weaponType: this.currentWeapon,
+      weaponDef: this.currentWeaponDef
+    });
+
+    this.stopAiming();
   }
 
   /**

@@ -19,7 +19,7 @@ export const WeaponDefinitions = {
     name: 'Pallina di Cacca',
     icon: '💩',
     description: 'Sempre disponibile, arco parabolico',
-    damage: 30, // 30% del max HP per colpo diretto
+    damage: 15, // 15% del max HP per colpo diretto (dimezzato)
     maxAmmo: Infinity,
     startingAmmo: Infinity,
     // Fisica del proiettile
@@ -55,6 +55,7 @@ export const WeaponDefinitions = {
     delayedExplosion: false,
     explosionDelay: 0,
     knockbackMultiplier: 0.5,
+    instantFire: true, // Spara sempre alla massima velocità (grilletto)
     // Tipo di lancio
     launchType: 'shoot' // shoot = traiettoria dritta
   },
@@ -123,6 +124,7 @@ export const WeaponDefinitions = {
     delayedExplosion: false,
     explosionDelay: 0,
     knockbackMultiplier: 3.0, // Knockback devastante
+    instantFire: true, // Spara sempre alla massima velocità (grilletto)
     // Tipo di lancio
     launchType: 'shoot'
   }
