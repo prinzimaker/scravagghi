@@ -687,6 +687,9 @@ export class GameScene extends Phaser.Scene {
       winner = 'Pareggio!';
     }
 
+    // Nota: non ci sono suoni per vittoria nelle linee guida audio
+    // I suoni sono solo per feedback durante il gameplay (danno, morte, frustrazione)
+
     // Overlay vittoria
     const overlay = this.add.rectangle(
       this.gameWidth / 2,
