@@ -507,30 +507,25 @@ export class GameScene extends Phaser.Scene {
     let anyDeath = false;
     let maxIntensity = null;
 
-    // Mostra danni
+    // Mostra danni (il danno è già stato applicato da Physics.applyExplosionDamage)
     damages.forEach(({ beetle, damage, distance, percent }) => {
       const player = beetle.player; // Recupera il player originale
-      const wasAlive = player.isAlive();
       player.updateSprite();
 
-      // Log danno
+      // Log danno e traccia eventi audio
       if (player.isDead()) {
         console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
 
         // Traccia che c'è stata almeno una morte
-        if (wasAlive) {
-          anyDeath = true;
-          player.fadeOut(this);
-        }
+        anyDeath = true;
+        player.fadeOut(this);
       } else {
         console.log(`💔 ${player.name} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${player.health}/${player.maxHealth}`);
 
         // Traccia l'intensità massima del danno
-        if (this.soundManager) {
-          const intensity = this.soundManager.calculateIntensity(damage, player.maxHealth);
-          if (!maxIntensity || this.getIntensityPriority(intensity) > this.getIntensityPriority(maxIntensity)) {
-            maxIntensity = intensity;
-          }
+        const intensity = this.soundManager.calculateIntensity(damage, player.maxHealth);
+        if (!maxIntensity || this.getIntensityPriority(intensity) > this.getIntensityPriority(maxIntensity)) {
+          maxIntensity = intensity;
         }
       }
 

@@ -214,6 +214,9 @@ export class SoundManager {
   onDamage(intensity = 'med') {
     if (!this.enabled) return;
 
+    // FERMA tutti i suoni in riproduzione prima di far partire il nuovo
+    this.scene.sound.stopAll();
+
     const category = `byte-${intensity}`;
     const sound = this.selectRandomSound(this.soundLibrary.byte[intensity], category);
 
@@ -231,6 +234,9 @@ export class SoundManager {
   onDeath() {
     if (!this.enabled) return;
 
+    // FERMA tutti i suoni in riproduzione prima di far partire il nuovo
+    this.scene.sound.stopAll();
+
     const sound = this.selectRandomSound(this.soundLibrary.kill, 'kill');
 
     if (sound) {
@@ -247,6 +253,9 @@ export class SoundManager {
   onTimeout() {
     if (!this.enabled) return;
 
+    // FERMA tutti i suoni in riproduzione prima di far partire il nuovo
+    this.scene.sound.stopAll();
+
     const sound = this.selectRandomSound(this.soundLibrary.frust, 'frust-timeout');
 
     if (sound) {
@@ -260,6 +269,9 @@ export class SoundManager {
    */
   onOffTarget() {
     if (!this.enabled) return;
+
+    // FERMA tutti i suoni in riproduzione prima di far partire il nuovo
+    this.scene.sound.stopAll();
 
     const sound = this.selectRandomSound(this.soundLibrary.frust, 'frust-miss');
 
