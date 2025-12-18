@@ -422,7 +422,8 @@ export class GameScene extends Phaser.Scene {
           if (result.impactPoint) {
             this.handleImpact(result);
           } else {
-            // EVENT: onOffTarget - il colpo è mancato completamente
+            // Nessun impatto (fuori schermo) → Frustrazione!
+            console.log('😤 Shot went off-screen without hitting anything');
             if (this.soundManager) {
               this.soundManager.onOffTarget();
             }
@@ -493,6 +494,15 @@ export class GameScene extends Phaser.Scene {
       beetlesCompat
     );
 
+    // Controlla se qualcuno è stato colpito
+    if (damages.length === 0) {
+      // NESSUN GIOCATORE COLPITO → Frustrazione!
+      console.log('😤 Shot hit terrain but no players affected');
+      if (this.soundManager) {
+        this.soundManager.onOffTarget();
+      }
+    }
+
     // Mostra danni
     damages.forEach(({ beetle, damage, distance, percent }) => {
       const player = beetle.player; // Recupera il player originale
@@ -503,7 +513,7 @@ export class GameScene extends Phaser.Scene {
       if (player.isDead()) {
         console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
 
-        // EVENT: onDeath
+        // EVENT: onDeath - Sempre quando muore un giocatore
         if (wasAlive && this.soundManager) {
           this.soundManager.onDeath();
         }
@@ -819,7 +829,7 @@ export class GameScene extends Phaser.Scene {
         this.activePlayer.takeDamage(penalty);
         this.activePlayer.updateSprite();
 
-        // EVENT: onTimeout
+        // EVENT: onTimeout - Frustrazione per tempo scaduto
         if (this.soundManager) {
           this.soundManager.onTimeout();
         }
@@ -863,7 +873,7 @@ export class GameScene extends Phaser.Scene {
         player.takeDamage(9999);
         player.updateSprite();
 
-        // EVENT: onDeath (caduta = morte)
+        // EVENT: onDeath - Sempre quando muore un giocatore
         if (this.soundManager) {
           this.soundManager.onDeath();
         }
