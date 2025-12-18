@@ -503,6 +503,10 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    // Traccia eventi audio (UN SOLO suono per esplosione)
+    let anyDeath = false;
+    let maxIntensity = null;
+
     // Mostra danni
     damages.forEach(({ beetle, damage, distance, percent }) => {
       const player = beetle.player; // Recupera il player originale
@@ -513,22 +517,20 @@ export class GameScene extends Phaser.Scene {
       if (player.isDead()) {
         console.log(`💀 ${player.name} KILLED by ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px)`);
 
-        // EVENT: onDeath - Sempre quando muore un giocatore
-        if (wasAlive && this.soundManager) {
-          this.soundManager.onDeath();
-        }
-
-        // Avvia fade out animato
+        // Traccia che c'è stata almeno una morte
         if (wasAlive) {
+          anyDeath = true;
           player.fadeOut(this);
         }
       } else {
         console.log(`💔 ${player.name} took ${damage} HP (${Math.round(percent)}% at ${Math.round(distance)}px) - HP: ${player.health}/${player.maxHealth}`);
 
-        // EVENT: onDamage (con intensità basata sul danno)
+        // Traccia l'intensità massima del danno
         if (this.soundManager) {
           const intensity = this.soundManager.calculateIntensity(damage, player.maxHealth);
-          this.soundManager.onDamage(intensity);
+          if (!maxIntensity || this.getIntensityPriority(intensity) > this.getIntensityPriority(maxIntensity)) {
+            maxIntensity = intensity;
+          }
         }
       }
 
@@ -588,6 +590,17 @@ export class GameScene extends Phaser.Scene {
       });
     });
 
+    // AUDIO EVENT: Suona UN SOLO suono per questa esplosione
+    if (damages.length > 0 && this.soundManager) {
+      if (anyDeath) {
+        // Se almeno un giocatore è morto → suono kill
+        this.soundManager.onDeath();
+      } else if (maxIntensity) {
+        // Altrimenti suona il danno con intensità massima
+        this.soundManager.onDamage(maxIntensity);
+      }
+    }
+
     // Applica gravità ai players
     this.players.forEach(player => {
       const beetleCompat = {
@@ -606,6 +619,12 @@ export class GameScene extends Phaser.Scene {
   /**
    * Fine del turno (NUOVO SISTEMA SEMPLICE)
    */
+  getIntensityPriority(intensity) {
+    // Assegna priorità numerica alle intensità del danno
+    const priorities = { low: 1, med: 2, hig: 3 };
+    return priorities[intensity] || 0;
+  }
+
   endTurn() {
     // Previeni chiamate multiple
     if (this.isTurnTransitioning) {
@@ -862,6 +881,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Controllo morte per caduta nei burroni
+    let anyFallDeath = false;
     this.players.forEach(player => {
       if (player.isAlive() && player.position.y > this.gameHeight + 50) {
         console.log(`💀 ${player.name} è caduto in un burrone!`);
@@ -870,10 +890,8 @@ export class GameScene extends Phaser.Scene {
         player.takeDamage(9999);
         player.updateSprite();
 
-        // EVENT: onDeath - Sempre quando muore un giocatore
-        if (this.soundManager) {
-          this.soundManager.onDeath();
-        }
+        // Traccia che c'è stata almeno una morte per caduta
+        anyFallDeath = true;
 
         // Avvia fade out animato
         player.fadeOut(this);
@@ -903,6 +921,11 @@ export class GameScene extends Phaser.Scene {
         });
       }
     });
+
+    // AUDIO EVENT: Suona UN SOLO suono se c'è stata almeno una morte per caduta
+    if (anyFallDeath && this.soundManager) {
+      this.soundManager.onDeath();
+    }
 
     // Aggiorna debug info
     this.updateDebugInfo();
