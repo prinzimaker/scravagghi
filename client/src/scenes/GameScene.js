@@ -14,20 +14,31 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Carica gli asset (audio, immagini, ecc.)
+   * Carica gli asset (audio manifest e file)
    */
   preload() {
     console.log('📦 Loading assets...');
 
-    // Inizializza e carica i suoni
+    // Inizializza sound manager
     this.soundManager = new SoundManager(this);
+
+    // Fase 1: Carica il manifest JSON
     this.soundManager.preload();
+
+    // Fase 2: Quando il JSON è caricato, carica i file audio
+    this.load.once('filecomplete-json-sounds-manifest', () => {
+      console.log('📋 Manifest loaded, loading audio files...');
+      this.soundManager.loadSoundFiles();
+
+      // Avvia il caricamento dei file audio
+      this.load.start();
+    });
   }
 
   create() {
     console.log('🎮 GameScene created');
 
-    // Inizializza il sound manager
+    // Inizializza il sound manager (dopo che i file sono stati caricati)
     if (this.soundManager) {
       this.soundManager.create();
     }

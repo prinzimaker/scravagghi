@@ -2,13 +2,13 @@
  * Gestisce il sistema audio di Scravagghi seguendo le linee guida ufficiali
  *
  * Struttura:
- * /sounds/byte/low/   - Danni bassi
- * /sounds/byte/med/   - Danni medi
- * /sounds/byte/hig/   - Danni alti
+ * /sounds/byte/low/   - Danni bassi (< 25% HP)
+ * /sounds/byte/med/   - Danni medi (25-50% HP)
+ * /sounds/byte/hig/   - Danni alti (> 50% HP)
  * /sounds/kill/       - Morte
  * /sounds/frust/      - Frustrazione (timeout, miss)
  *
- * Ogni cartella può contenere più file che vengono selezionati randomicamente
+ * I file vengono letti dinamicamente da sounds.json
  */
 export class SoundManager {
   constructor(scene) {
@@ -21,82 +21,146 @@ export class SoundManager {
     this.lastPlayed = {}; // Traccia ultimo suono riprodotto per evitare ripetizioni
     this.masterVolume = 1.0;
     this.enabled = true;
+    this.soundsConfig = null; // Configurazione caricata da sounds.json
   }
 
   /**
-   * Carica dinamicamente tutti i file audio dalla struttura
-   * Nota: per ora usiamo un approccio con file predefiniti,
-   * in futuro si può estendere con scanning dinamico
+   * Carica il manifest sounds.json e poi i file audio
    */
   preload() {
     console.log('📦 Loading Scravagghi audio system...');
 
+    // Carica il manifest JSON
+    this.scene.load.json('sounds-manifest', '/sounds/sounds.json');
+  }
+
+  /**
+   * Dopo il preload, carica i file audio elencati nel manifest
+   */
+  async loadSoundFiles() {
     const basePath = '/sounds/';
 
-    // Definiamo i file audio da caricare (placeholder)
-    // In produzione questi verranno letti dinamicamente dal server
-    const soundFiles = {
-      'byte-low-1': `${basePath}byte/low/ach.wav`,
-      'byte-low-2': `${basePath}byte/low/ouch.wav`,
-      'byte-med-1': `${basePath}byte/med/ahio.wav`,
-      'byte-med-2': `${basePath}byte/med/mannaggia.wav`,
-      'byte-med-3': `${basePath}byte/med/urlo2.wav`,
-      'byte-hig-1': `${basePath}byte/hig/aaaargh.wav`,
-      'byte-hig-2': `${basePath}byte/hig/damn.wav`,
-      'byte-hig-3': `${basePath}byte/hig/wow.wav`,
-      'kill-1': `${basePath}kill/imdying.wav`,
-      'kill-2': `${basePath}kill/grrll.wav`,
-      'frust-1': `${basePath}frust/wtf.wav`,
-      'frust-2': `${basePath}frust/kiddingme.wav`
-    };
+    try {
+      // Ottieni il manifest dal cache
+      this.soundsConfig = this.scene.cache.json.get('sounds-manifest');
 
-    // Carica ogni file
-    Object.entries(soundFiles).forEach(([key, path]) => {
-      try {
-        // Prova WAV, MP3, OGG come fallback
-        this.scene.load.audio(key, [
-          path,
-          path.replace('.wav', '.mp3'),
-          path.replace('.wav', '.ogg')
-        ]);
-      } catch (error) {
-        console.warn(`⚠️ Could not load sound: ${key}`, error);
+      if (!this.soundsConfig) {
+        console.warn('⚠️ sounds.json not found - audio system disabled');
+        this.enabled = false;
+        return;
       }
-    });
+
+      console.log('📋 Sound manifest loaded:', this.soundsConfig);
+
+      // Carica i file byte/low
+      if (this.soundsConfig.byte?.low) {
+        this.soundsConfig.byte.low.forEach((filename, index) => {
+          const key = `byte-low-${index}`;
+          const path = `${basePath}byte/low/${filename}`;
+          this.loadAudioFile(key, path);
+        });
+      }
+
+      // Carica i file byte/med
+      if (this.soundsConfig.byte?.med) {
+        this.soundsConfig.byte.med.forEach((filename, index) => {
+          const key = `byte-med-${index}`;
+          const path = `${basePath}byte/med/${filename}`;
+          this.loadAudioFile(key, path);
+        });
+      }
+
+      // Carica i file byte/hig
+      if (this.soundsConfig.byte?.hig) {
+        this.soundsConfig.byte.hig.forEach((filename, index) => {
+          const key = `byte-hig-${index}`;
+          const path = `${basePath}byte/hig/${filename}`;
+          this.loadAudioFile(key, path);
+        });
+      }
+
+      // Carica i file kill
+      if (this.soundsConfig.kill) {
+        this.soundsConfig.kill.forEach((filename, index) => {
+          const key = `kill-${index}`;
+          const path = `${basePath}kill/${filename}`;
+          this.loadAudioFile(key, path);
+        });
+      }
+
+      // Carica i file frust
+      if (this.soundsConfig.frust) {
+        this.soundsConfig.frust.forEach((filename, index) => {
+          const key = `frust-${index}`;
+          const path = `${basePath}frust/${filename}`;
+          this.loadAudioFile(key, path);
+        });
+      }
+
+      console.log('✅ Audio files queued for loading');
+    } catch (error) {
+      console.warn('⚠️ Error loading sounds:', error);
+      this.enabled = false;
+    }
+  }
+
+  /**
+   * Helper per caricare un file audio con fallback WAV/MP3/OGG
+   */
+  loadAudioFile(key, path) {
+    try {
+      this.scene.load.audio(key, [
+        path,
+        path.replace('.wav', '.mp3'),
+        path.replace('.wav', '.ogg')
+      ]);
+    } catch (error) {
+      console.warn(`⚠️ Could not queue sound: ${key}`, error);
+    }
   }
 
   /**
    * Inizializza la libreria audio dopo il caricamento
+   * Deve essere chiamato DOPO che i file audio sono stati caricati
    */
   create() {
+    if (!this.soundsConfig) {
+      console.warn('⚠️ No sound configuration - skipping audio initialization');
+      this.enabled = false;
+      return;
+    }
+
     try {
       // Organizza i suoni caricati nella libreria
-      this.soundLibrary.byte.low = [
-        this.createSound('byte-low-1'),
-        this.createSound('byte-low-2')
-      ].filter(Boolean);
+      if (this.soundsConfig.byte?.low) {
+        this.soundLibrary.byte.low = this.soundsConfig.byte.low
+          .map((_, index) => this.createSound(`byte-low-${index}`))
+          .filter(Boolean);
+      }
 
-      this.soundLibrary.byte.med = [
-        this.createSound('byte-med-1'),
-        this.createSound('byte-med-2'),
-        this.createSound('byte-med-3')
-      ].filter(Boolean);
+      if (this.soundsConfig.byte?.med) {
+        this.soundLibrary.byte.med = this.soundsConfig.byte.med
+          .map((_, index) => this.createSound(`byte-med-${index}`))
+          .filter(Boolean);
+      }
 
-      this.soundLibrary.byte.hig = [
-        this.createSound('byte-hig-1'),
-        this.createSound('byte-hig-2'),
-        this.createSound('byte-hig-3')
-      ].filter(Boolean);
+      if (this.soundsConfig.byte?.hig) {
+        this.soundLibrary.byte.hig = this.soundsConfig.byte.hig
+          .map((_, index) => this.createSound(`byte-hig-${index}`))
+          .filter(Boolean);
+      }
 
-      this.soundLibrary.kill = [
-        this.createSound('kill-1'),
-        this.createSound('kill-2')
-      ].filter(Boolean);
+      if (this.soundsConfig.kill) {
+        this.soundLibrary.kill = this.soundsConfig.kill
+          .map((_, index) => this.createSound(`kill-${index}`))
+          .filter(Boolean);
+      }
 
-      this.soundLibrary.frust = [
-        this.createSound('frust-1'),
-        this.createSound('frust-2')
-      ].filter(Boolean);
+      if (this.soundsConfig.frust) {
+        this.soundLibrary.frust = this.soundsConfig.frust
+          .map((_, index) => this.createSound(`frust-${index}`))
+          .filter(Boolean);
+      }
 
       console.log('🔊 Scravagghi Audio System initialized');
       console.log(`   - Byte/Low: ${this.soundLibrary.byte.low.length} files`);
@@ -207,6 +271,11 @@ export class SoundManager {
 
   /**
    * Calcola l'intensità del danno basata sulla percentuale di HP persi
+   * SOGLIE CORRETTE:
+   * - < 25% HP → low
+   * - 25-50% HP → med
+   * - > 50% HP → hig
+   *
    * @param {number} damage - Danno inflitto
    * @param {number} maxHealth - HP massimi
    * @returns {string} 'low', 'med', 'hig'
@@ -214,8 +283,8 @@ export class SoundManager {
   calculateIntensity(damage, maxHealth) {
     const percentage = (damage / maxHealth) * 100;
 
-    if (percentage < 20) return 'low';      // < 20% HP
-    if (percentage < 50) return 'med';      // 20-50% HP
+    if (percentage < 25) return 'low';      // < 25% HP
+    if (percentage < 50) return 'med';      // 25-50% HP
     return 'hig';                            // > 50% HP
   }
 

@@ -4,7 +4,10 @@
   "description": "Scravagghi Game Client - Artillery game with beetles",
   "type": "module",
   "scripts": {
+    "generate-sounds": "node ../scripts/generate-sounds-manifest.js",
+    "predev": "npm run generate-sounds",
     "dev": "vite",
+    "prebuild": "npm run generate-sounds",
     "build": "vite build",
     "preview": "vite preview"
   },

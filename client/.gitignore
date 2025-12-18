@@ -3,3 +3,6 @@ dist/
 .DS_Store
 *.log
 .vite/
+
+# Auto-generated audio manifest (created by generate-sounds-manifest.js)
+public/sounds/sounds.json
