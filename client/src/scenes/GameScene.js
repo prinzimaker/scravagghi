@@ -429,9 +429,9 @@ export class GameScene extends Phaser.Scene {
    * Crea UI del gioco
    */
   createUI() {
-    // TITOLO PRINCIPALE al centro
-    this.titleText = this.add.text(this.gameWidth / 2, this.gameHeight / 2 - 50, 'SCRAVAGGHI', {
-      fontSize: '72px',
+    // TITOLO PRINCIPALE in cima
+    this.titleText = this.add.text(this.gameWidth / 2, 35, 'SCRAVAGGHI', {
+      fontSize: '42px',
       fill: '#ffcc00',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -440,8 +440,8 @@ export class GameScene extends Phaser.Scene {
     this.titleText.setOrigin(0.5);
     this.titleText.setDepth(100); // Sopra tutto
 
-    // Pannello turno (in alto a sinistra)
-    this.turnText = this.add.text(20, 10, 'Turno 1 - Team Verde', {
+    // Pannello turno (in alto a sinistra, sotto il titolo)
+    this.turnText = this.add.text(20, 60, 'Turno 1 - Team Verde', {
       fontSize: '18px',
       fill: '#fff',
       fontStyle: 'bold',
@@ -450,7 +450,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Timer turno (accanto al turno)
-    this.timerText = this.add.text(200, 10, '10s', {
+    this.timerText = this.add.text(200, 60, '10s', {
       fontSize: '18px',
       fill: '#ffff00',
       fontStyle: 'bold',
@@ -459,7 +459,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Legenda comandi (in alto a destra, piccola)
-    this.instructionsText = this.add.text(this.gameWidth - 10, 10,
+    this.instructionsText = this.add.text(this.gameWidth - 10, 60,
       '↑↓ Angolo | ←→ Muovi | SPAZIO Spara | ENTER Armi', {
       fontSize: '11px',
       fill: '#aaaaaa',
