@@ -19,7 +19,7 @@ export const WeaponDefinitions = {
     name: 'Pallina di Cacca',
     icon: '💩',
     description: 'Sempre disponibile, arco parabolico',
-    damage: 30, // 30% del max HP per colpo diretto
+    damage: 15, // 15% del max HP per colpo diretto (dimezzato)
     maxAmmo: Infinity,
     startingAmmo: Infinity,
     // Fisica del proiettile
@@ -48,13 +48,14 @@ export const WeaponDefinitions = {
     gravity: 245, // 1/4 della gravità = arco 4x più lungo
     maxVelocity: 1500, // Velocità alta per proiettile veloce
     arcFactor: 4.0, // Arco 4 volte più lungo
-    explosionRadius: 20, // Esplosione più piccola
+    explosionRadius: 4, // Cratere minimo (10% della pallina di cacca)
     // Comportamento speciale
     bounces: false,
     explodeOnImpact: true,
     delayedExplosion: false,
     explosionDelay: 0,
     knockbackMultiplier: 0.5,
+    instantFire: true, // Spara sempre alla massima velocità (grilletto)
     // Tipo di lancio
     launchType: 'shoot' // shoot = traiettoria dritta
   },
@@ -123,6 +124,7 @@ export const WeaponDefinitions = {
     delayedExplosion: false,
     explosionDelay: 0,
     knockbackMultiplier: 3.0, // Knockback devastante
+    instantFire: true, // Spara sempre alla massima velocità (grilletto)
     // Tipo di lancio
     launchType: 'shoot'
   }
@@ -237,10 +239,7 @@ export class WeaponSelector {
     this.weaponSlots = [];
     this.onWeaponSelected = null;
     this.selectedIndex = 0;
-
-    // Traccia la posizione del mouse
-    this.lastMouseY = 0;
-    this.showThreshold = 0; // Verrà impostato dopo create()
+    this.inputEnabled = false;
   }
 
   /**
@@ -249,9 +248,6 @@ export class WeaponSelector {
   create() {
     const gameHeight = this.scene.gameHeight;
     const gameWidth = this.scene.gameWidth;
-
-    // Soglia: mostra quando il mouse è nel 15% inferiore dello schermo
-    this.showThreshold = gameHeight * 0.85;
 
     // Container principale (inizialmente nascosto sotto lo schermo)
     this.container = this.scene.add.container(gameWidth / 2, gameHeight + 60);
@@ -285,7 +281,7 @@ export class WeaponSelector {
     });
 
     // Istruzioni
-    const instructions = this.scene.add.text(0, barHeight/2 - 10, '← → o mouse per scegliere, INVIO o click per confermare, ESC per annullare', {
+    const instructions = this.scene.add.text(0, barHeight/2 - 10, '← → per scegliere, INVIO per confermare, ESC per annullare', {
       fontSize: '10px',
       fill: '#aaaaaa'
     });
@@ -302,27 +298,9 @@ export class WeaponSelector {
   createWeaponSlot(type, def, x, y, index) {
     const slotContainer = this.scene.add.container(x, y);
 
-    // Sfondo slot (interattivo per click)
+    // Sfondo slot
     const slotBg = this.scene.add.rectangle(0, 0, 60, 50, 0x333333, 0.8);
     slotBg.setStrokeStyle(2, 0x666666);
-    slotBg.setInteractive({ useHandCursor: true });
-
-    // Click handler per selezionare e confermare
-    slotBg.on('pointerdown', () => {
-      if (this.inputEnabled) {
-        this.selectedIndex = index;
-        this.updateSelection();
-        this.confirmSelection();
-      }
-    });
-
-    // Hover effect
-    slotBg.on('pointerover', () => {
-      if (this.inputEnabled) {
-        this.selectedIndex = index;
-        this.updateSelection();
-      }
-    });
 
     slotContainer.add(slotBg);
 
@@ -364,11 +342,6 @@ export class WeaponSelector {
     this.rightKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
     this.enterKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
     this.escKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-
-    // Mouse movement tracking
-    this.scene.input.on('pointermove', (pointer) => {
-      this.lastMouseY = pointer.y;
-    });
   }
 
   /**
@@ -535,13 +508,6 @@ export class WeaponSelector {
     if (Phaser.Input.Keyboard.JustDown(this.escKey)) {
       this.cancel();
     }
-  }
-
-  /**
-   * Controlla se il mouse è nella zona per mostrare il selettore
-   */
-  shouldShow() {
-    return this.lastMouseY > this.showThreshold;
   }
 
   /**

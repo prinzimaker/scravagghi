@@ -25,9 +25,9 @@ export class Player {
     this.isActive = false; // true quando è il suo turno
     this.hasFadedOut = false; // true quando l'animazione di fade è stata avviata
 
-    // Dimensioni
-    this.width = 32;
-    this.height = 24;
+    // Dimensioni (50% più piccoli)
+    this.width = 16;
+    this.height = 12;
 
     // Rendering (Phaser sprites)
     this.sprite = null;
@@ -92,9 +92,9 @@ export class Player {
     this.sprite.setOrigin(0.5, 1);
     this.sprite.setDepth(10); // Giocatori sempre davanti a tutto
 
-    // Barra HP
-    const hpBarHeight = 6;
-    const hpBarY = this.position.y - this.height - 8;
+    // Barra HP (sotto il giocatore)
+    const hpBarHeight = 4;
+    const hpBarY = this.position.y + 2;
 
     this.hpBarBg = scene.add.rectangle(
       this.position.x - this.width / 2,
@@ -117,20 +117,20 @@ export class Player {
     this.hpBar.setOrigin(0, 0);
     this.hpBar.setDepth(11); // Barra HP sopra i giocatori
 
-    // Nome del giocatore (opzionale)
+    // Nome del giocatore (sopra il giocatore)
     this.nameText = scene.add.text(
       this.position.x,
-      this.position.y - this.height - 20,
+      this.position.y - this.height - 8,
       this.name,
       {
-        fontSize: '10px',
+        fontSize: '9px',
         fill: '#ffffff',
         stroke: '#000000',
         strokeThickness: 2
       }
     );
     this.nameText.setOrigin(0.5);
-    this.nameText.setVisible(false); // Nascosto di default
+    this.nameText.setVisible(true); // Sempre visibile
     this.nameText.setDepth(12); // Nome sopra tutto
   }
 
@@ -150,8 +150,8 @@ export class Player {
     }
 
     if (this.hpBar && this.hpBarBg) {
-      const hpBarHeight = 6;
-      const hpBarY = this.position.y - this.height - 8;
+      const hpBarHeight = 4;
+      const hpBarY = this.position.y + 2; // Sotto il giocatore
       const hpWidth = this.width * (this.health / this.maxHealth);
 
       this.hpBar.setSize(hpWidth, hpBarHeight);
@@ -169,8 +169,8 @@ export class Player {
     }
 
     if (this.nameText) {
-      this.nameText.setPosition(this.position.x, this.position.y - this.height - 20);
-      this.nameText.setVisible(this.isActive);
+      this.nameText.setPosition(this.position.x, this.position.y - this.height - 8); // Sopra il giocatore
+      this.nameText.setVisible(true); // Sempre visibile
     }
 
     // Se morto, nascondi UI (il fade out è gestito dal metodo fadeOut)
