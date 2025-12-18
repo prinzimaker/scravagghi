@@ -543,6 +543,12 @@ export class GameScene extends Phaser.Scene {
   animateProjectile(result) {
     const weaponDef = result.weaponDef || WeaponDefinitions[WeaponType.POOP_BALL];
 
+    // Per granate con esplosione ritardata, il timer parte dal lancio
+    const isTimedGrenade = weaponDef.delayedExplosion && !weaponDef.explodeOnImpact;
+    let grenadeExploded = false;
+    let grenadeTimer = null;
+    let countdownText = null;
+
     // Crea il proiettile con l'icona dell'arma
     let projectile;
     if (weaponDef.icon) {
@@ -563,6 +569,40 @@ export class GameScene extends Phaser.Scene {
     }
     projectile.setDepth(5); // Sopra terreno, visibile durante volo
 
+    // Per granate: avvia timer dal lancio e entra in fase fuga
+    if (isTimedGrenade) {
+      this.gamePhase = 'escaping';
+      this.aimController.stopAiming();
+      this.showEscapeMessage('SCAPPA! ← → per muoverti');
+
+      let countdown = Math.ceil(weaponDef.explosionDelay / 1000);
+
+      // Countdown visivo che segue la granata
+      countdownText = this.add.text(0, 0, `${countdown}`, {
+        fontSize: '16px',
+        fill: '#ff0000',
+        fontStyle: 'bold'
+      });
+      countdownText.setOrigin(0.5);
+      countdownText.setDepth(15);
+
+      // Timer che parte dal lancio
+      grenadeTimer = this.time.addEvent({
+        delay: 1000,
+        callback: () => {
+          countdown--;
+          if (countdownText) {
+            countdownText.setText(`${countdown}`);
+          }
+
+          if (countdown <= 0) {
+            grenadeExploded = true;
+          }
+        },
+        loop: true
+      });
+    }
+
     let currentPoint = 0;
     const animSpeed = 0.9; // Punti per frame
 
@@ -572,16 +612,41 @@ export class GameScene extends Phaser.Scene {
       callback: () => {
         currentPoint += animSpeed;
 
+        // Aggiorna posizione countdown se esiste
+        if (countdownText && projectile) {
+          countdownText.setPosition(projectile.x, projectile.y - 25);
+        }
+
+        // Se la granata è esplosa (timer scaduto), esplodi dove si trova
+        if (grenadeExploded) {
+          const explosionX = projectile.x;
+          const explosionY = projectile.y;
+
+          projectile.destroy();
+          timer.remove();
+          if (grenadeTimer) grenadeTimer.remove();
+          if (countdownText) countdownText.destroy();
+          this.hideEscapeMessage();
+
+          // Esplosione!
+          this.handleDelayedExplosion(explosionX, explosionY, weaponDef);
+          this.endTurn();
+          return;
+        }
+
         if (currentPoint >= result.trajectory.length) {
           // Fine traiettoria
           projectile.destroy();
           timer.remove();
 
           if (result.impactPoint) {
-            // Gestisci esplosione ritardata per granate
-            if (weaponDef.delayedExplosion && !weaponDef.explodeOnImpact) {
-              this.handleGrenadeStop(result.impactPoint.x, result.impactPoint.y, weaponDef);
+            // Per granate con timer, aspetta che il timer finisca
+            if (isTimedGrenade && !grenadeExploded) {
+              // La granata si è fermata ma il timer non è ancora scaduto
+              // Crea sprite granata ferma e aspetta
+              this.handleGrenadeWaiting(result.impactPoint.x, result.impactPoint.y, weaponDef, grenadeTimer, countdownText);
             } else {
+              if (countdownText) countdownText.destroy();
               this.handleImpact(result);
             }
           } else {
@@ -590,6 +655,9 @@ export class GameScene extends Phaser.Scene {
             if (this.soundManager) {
               this.soundManager.onOffTarget();
             }
+            if (grenadeTimer) grenadeTimer.remove();
+            if (countdownText) countdownText.destroy();
+            this.hideEscapeMessage();
             this.endTurn();
           }
 
@@ -604,14 +672,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Gestisce la granata che si ferma (esplosione ritardata)
+   * Gestisce la granata che si è fermata ma deve ancora esplodere
    */
-  handleGrenadeStop(x, y, weaponDef) {
-    console.log(`💣 Grenade stopped at (${x}, ${y}), exploding in ${weaponDef.explosionDelay / 1000}s`);
-
-    // Entra in fase "fuga" - il giocatore può muoversi ma non sparare
-    this.gamePhase = 'escaping';
-    this.aimController.stopAiming();
+  handleGrenadeWaiting(x, y, weaponDef, existingTimer, existingCountdown) {
+    console.log(`💣 Grenade waiting at (${x}, ${y})`);
 
     // Crea sprite granata ferma
     const grenade = this.add.text(x, y, weaponDef.icon, {
@@ -620,41 +684,32 @@ export class GameScene extends Phaser.Scene {
     grenade.setOrigin(0.5);
     grenade.setDepth(15);
 
-    // Timer countdown visivo
-    let countdown = Math.ceil(weaponDef.explosionDelay / 1000);
-    const countdownText = this.add.text(x, y - 25, `${countdown}`, {
-      fontSize: '16px',
-      fill: '#ff0000',
-      fontStyle: 'bold'
-    });
-    countdownText.setOrigin(0.5);
-    countdownText.setDepth(15);
+    // Sposta il countdown sulla posizione finale
+    if (existingCountdown) {
+      existingCountdown.setPosition(x, y - 25);
+    }
 
-    // Mostra istruzioni di fuga
-    this.showEscapeMessage('SCAPPA! ← → per muoverti');
+    // Quando il timer esistente finisce, esplodi
+    // Modifica il callback del timer esistente
+    existingTimer.callback = () => {
+      const currentText = existingCountdown ? parseInt(existingCountdown.text) : 0;
+      const newCount = currentText - 1;
 
-    // Countdown timer
-    const countdownTimer = this.time.addEvent({
-      delay: 1000,
-      callback: () => {
-        countdown--;
-        countdownText.setText(`${countdown}`);
+      if (existingCountdown) {
+        existingCountdown.setText(`${newCount}`);
+      }
 
-        if (countdown <= 0) {
-          countdownTimer.remove();
-          grenade.destroy();
-          countdownText.destroy();
-          this.hideEscapeMessage();
+      if (newCount <= 0) {
+        existingTimer.remove();
+        grenade.destroy();
+        if (existingCountdown) existingCountdown.destroy();
+        this.hideEscapeMessage();
 
-          // Esplosione!
-          this.handleDelayedExplosion(x, y, weaponDef);
-
-          // ORA termina il turno
-          this.endTurn();
-        }
-      },
-      loop: true
-    });
+        // Esplosione!
+        this.handleDelayedExplosion(x, y, weaponDef);
+        this.endTurn();
+      }
+    };
   }
 
   /**
