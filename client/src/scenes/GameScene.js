@@ -85,8 +85,12 @@ export class GameScene extends Phaser.Scene {
       down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
       space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
       enter: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
-      esc: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC)
+      esc: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC),
+      jump: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C)
     };
+
+    // Stato salto
+    this.isJumping = false;
 
     // Passa i tasti all'AimController
     this.aimController.setKeys(this.keys);
@@ -634,7 +638,7 @@ export class GameScene extends Phaser.Scene {
 
     // Legenda comandi (in alto a destra, piccola)
     this.instructionsText = this.add.text(this.gameWidth - 10, 85,
-      '↑↓ Angolo | ←→ Muovi | SPAZIO Spara | ENTER Armi', {
+      '↑↓ Angolo | ←→ Muovi | C Salta | SPAZIO Spara | ENTER Armi', {
       fontSize: '10px',
       fill: '#888888',
       backgroundColor: '#000000aa',
@@ -666,6 +670,12 @@ export class GameScene extends Phaser.Scene {
    * Inizia un nuovo turno (NUOVO SISTEMA SEMPLICE)
    */
   startTurn() {
+    // Reset di tutti i tasti per evitare input bufferizzati
+    if (this.keys) {
+      Object.values(this.keys).forEach(key => key.reset());
+    }
+    this.isJumping = false;
+
     // Usa l'element corrente per questo team
     const currentElement = this.currentTeamId === 0 ? this.team0CurrentElement : this.team1CurrentElement;
 
@@ -1688,6 +1698,84 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Esegue un salto (50px avanti, 30px altezza)
+   */
+  performJump() {
+    if (!this.activePlayer || this.isJumping) return;
+
+    this.isJumping = true;
+
+    const startX = this.activePlayer.position.x;
+    const startY = this.activePlayer.position.y;
+
+    // Direzione del salto basata sulla direzione dello scarafaggio
+    const direction = this.activePlayer.container.scaleX; // 1 = destra, -1 = sinistra
+    const jumpDistanceX = 50 * direction;
+    const jumpHeight = 30;
+
+    // Calcola posizione finale
+    let targetX = startX + jumpDistanceX;
+    targetX = Math.max(20, Math.min(this.gameWidth - 20, targetX));
+
+    // Perde punti per il salto
+    this.activePlayer.addScore(-5);
+
+    // Anima le zampe durante il salto
+    let legPhase = 0;
+    const legTimer = this.time.addEvent({
+      delay: 30,
+      callback: () => {
+        legPhase += 0.8;
+        this.activePlayer.drawLegs(legPhase);
+      },
+      repeat: 20
+    });
+
+    // Fase 1: Salto verso l'alto e in avanti
+    this.tweens.add({
+      targets: this.activePlayer.position,
+      x: startX + jumpDistanceX * 0.5,
+      y: startY - jumpHeight,
+      duration: 200,
+      ease: 'Quad.easeOut',
+      onUpdate: () => {
+        this.activePlayer.updateSprite();
+      },
+      onComplete: () => {
+        // Fase 2: Discesa verso il terreno
+        const landingX = targetX;
+        const landingY = this.terrain.getGroundY(Math.floor(landingX));
+
+        this.tweens.add({
+          targets: this.activePlayer.position,
+          x: landingX,
+          y: landingY,
+          duration: 250,
+          ease: 'Quad.easeIn',
+          onUpdate: () => {
+            this.activePlayer.updateSprite();
+          },
+          onComplete: () => {
+            // Atterraggio
+            legTimer.remove();
+            this.activePlayer.drawLegs(0);
+            this.isJumping = false;
+
+            // Aggiorna posizione mira se in fase aiming
+            if (this.gamePhase === 'aiming') {
+              this.aimController.shooterX = landingX;
+              this.aimController.shooterY = landingY - this.activePlayer.height;
+            }
+
+            // Reset del tasto per evitare problemi
+            this.keys.jump.reset();
+          }
+        });
+      }
+    });
+  }
+
+  /**
    * Applica gravità animata a tutti i giocatori dopo un'esplosione
    * @param {Function} onComplete - Callback da chiamare quando tutti hanno finito di cadere
    */
@@ -1904,9 +1992,9 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // Controlla se il giocatore ha raccolto una cassa
-      if (playerMoved) {
-        this.checkCrateCollection(this.activePlayer);
+      // SALTO con tasto C (50px avanti, 30px altezza)
+      if (Phaser.Input.Keyboard.JustDown(this.keys.jump) && !this.isJumping) {
+        this.performJump();
       }
     }
 
