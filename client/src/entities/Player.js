@@ -187,17 +187,15 @@ export class Player {
 
     this.hasFadedOut = true;
 
-    // Nascondi subito le UI
-    if (this.hpBar) this.hpBar.setVisible(false);
-    if (this.hpBarBg) this.hpBarBg.setVisible(false);
-    if (this.nameText) this.nameText.setVisible(false);
+    // FADE LENTO di TUTTI gli elementi insieme (sprite + UI)
+    const fadeDuration = 2500; // 2.5 secondi per un fade più lento
+    const targets = [this.sprite, this.hpBar, this.hpBarBg, this.nameText].filter(Boolean);
 
-    // Anima il fade dello sprite
-    if (this.sprite) {
+    if (targets.length > 0) {
       scene.tweens.add({
-        targets: this.sprite,
+        targets: targets,
         alpha: 0,
-        duration: 1500,
+        duration: fadeDuration,
         ease: 'Power2'
       });
     }
