@@ -104,19 +104,36 @@ export class Physics {
       }
 
       // Check collisione con beetle (solo se esplode all'impatto)
+      // Usa ray casting per proiettili veloci che potrebbero saltare i giocatori
       if (explodeOnImpact) {
-        for (const beetle of beetles) {
-          if (!beetle.isAlive) continue;
+        // Grace period: ignora collisioni troppo vicine al punto di partenza
+        const distanceFromStart = Math.sqrt(
+          Math.pow(x - startX, 2) + Math.pow(y - startY, 2)
+        );
+        const gracePeriodOver = distanceFromStart > 40;
 
-          const dx = x - beetle.x;
-          const dy = y - beetle.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+        if (gracePeriodOver) {
+          for (const beetle of beetles) {
+            if (!beetle.isAlive) continue;
 
-          if (distance < beetle.width / 2) {
-            impactPoint = { x, y };
-            hitBeetle = beetle;
-            trajectory.push({ x, y, t: time, event: 'hit_player' });
-            break;
+            // Hitbox rettangolare del beetle (x,y è ai piedi del beetle)
+            const beetleLeft = beetle.x - beetle.width / 2 - 4;
+            const beetleRight = beetle.x + beetle.width / 2 + 4;
+            const beetleTop = beetle.y - beetle.height - 4;
+            const beetleBottom = beetle.y + 4;
+
+            // Ray casting: controlla se la linea da prevX,prevY a x,y interseca l'hitbox
+            const hit = Physics.lineIntersectsRect(
+              prevX, prevY, x, y,
+              beetleLeft, beetleTop, beetleRight, beetleBottom
+            );
+
+            if (hit) {
+              impactPoint = { x: hit.x, y: hit.y };
+              hitBeetle = beetle;
+              trajectory.push({ x: hit.x, y: hit.y, t: time, event: 'hit_player' });
+              break;
+            }
           }
         }
       }
@@ -136,6 +153,73 @@ export class Physics {
       duration: time,
       bounceCount
     };
+  }
+
+  /**
+   * Controlla se un segmento di linea interseca un rettangolo
+   * Restituisce il punto di intersezione più vicino o null
+   */
+  static lineIntersectsRect(x1, y1, x2, y2, rectLeft, rectTop, rectRight, rectBottom) {
+    // Controlla se il punto finale è dentro il rettangolo
+    if (x2 >= rectLeft && x2 <= rectRight && y2 >= rectTop && y2 <= rectBottom) {
+      return { x: x2, y: y2 };
+    }
+
+    // Controlla intersezione con ogni lato del rettangolo
+    const intersections = [];
+
+    // Lato sinistro
+    const leftHit = Physics.lineIntersectsLine(x1, y1, x2, y2, rectLeft, rectTop, rectLeft, rectBottom);
+    if (leftHit) intersections.push(leftHit);
+
+    // Lato destro
+    const rightHit = Physics.lineIntersectsLine(x1, y1, x2, y2, rectRight, rectTop, rectRight, rectBottom);
+    if (rightHit) intersections.push(rightHit);
+
+    // Lato superiore
+    const topHit = Physics.lineIntersectsLine(x1, y1, x2, y2, rectLeft, rectTop, rectRight, rectTop);
+    if (topHit) intersections.push(topHit);
+
+    // Lato inferiore
+    const bottomHit = Physics.lineIntersectsLine(x1, y1, x2, y2, rectLeft, rectBottom, rectRight, rectBottom);
+    if (bottomHit) intersections.push(bottomHit);
+
+    if (intersections.length === 0) return null;
+
+    // Restituisci il punto più vicino a (x1, y1)
+    let closest = intersections[0];
+    let closestDist = Math.sqrt(Math.pow(closest.x - x1, 2) + Math.pow(closest.y - y1, 2));
+
+    for (let i = 1; i < intersections.length; i++) {
+      const dist = Math.sqrt(Math.pow(intersections[i].x - x1, 2) + Math.pow(intersections[i].y - y1, 2));
+      if (dist < closestDist) {
+        closest = intersections[i];
+        closestDist = dist;
+      }
+    }
+
+    return closest;
+  }
+
+  /**
+   * Controlla se due segmenti di linea si intersecano
+   * Restituisce il punto di intersezione o null
+   */
+  static lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
+    const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+    if (Math.abs(denom) < 0.0001) return null; // Linee parallele
+
+    const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+    const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+
+    if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
+      return {
+        x: x1 + ua * (x2 - x1),
+        y: y1 + ua * (y2 - y1)
+      };
+    }
+
+    return null;
   }
 
   /**
