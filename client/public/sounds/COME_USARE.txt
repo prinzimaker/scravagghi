@@ -1,0 +1,179 @@
+╔══════════════════════════════════════════════════════════════╗
+║         SISTEMA AUDIO SCRAVAGGHI - GUIDA RAPIDA             ║
+╚══════════════════════════════════════════════════════════════╝
+
+🎯 SISTEMA AUTOMATICO!
+═══════════════════════
+
+Il file sounds.json viene GENERATO AUTOMATICAMENTE!
+
+Non devi fare NULLA - basta copiare i file audio nelle cartelle
+e lo script li trova automaticamente.
+
+📂 STRUTTURA OBBLIGATORIA
+═══════════════════════════
+
+Copia i tuoi file audio seguendo ESATTAMENTE questa struttura:
+
+/sounds
+   ├── byte/
+   │    ├── low/      ← Danni bassi (< 25% HP)
+   │    ├── med/      ← Danni medi (25-50% HP)
+   │    └── hig/      ← Danni alti (> 50% HP)
+   ├── kill/          ← Morte
+   └── frust/         ← Frustrazione (timeout, miss)
+
+⚡ SUPER SEMPLICE
+═════════════════
+
+1. Copia i tuoi file audio nelle cartelle corrette
+2. Avvia: npm run dev
+3. Lo script:
+   - Scansiona le cartelle
+   - Trova tutti i file .wav, .mp3, .ogg
+   - Genera sounds.json automaticamente
+   - Avvia il gioco
+
+FATTO! Non serve fare altro! 🎉
+
+📊 QUANDO VENGONO SUONATI
+═════════════════════════
+
+byte/low/    → Danno < 25% HP (colpo leggero)
+byte/med/    → Danno 25-50% HP (colpo medio)
+byte/hig/    → Danno > 50% HP (colpo devastante)
+kill/        → Player muore (qualsiasi causa)
+frust/       → Timeout (tempo scaduto) o Miss (colpo mancato)
+
+💡 ESEMPIO PRATICO
+═════════════════
+
+Scenario: Il tuo scarabeo ha 100 HP e subisce 30 HP di danno
+
+Calcolo: 30/100 = 30% (tra 25-50%)
+Categoria: byte/med/
+Risultato: Il gioco riproduce RANDOM uno dei file in byte/med/
+
+✅ SETUP VELOCE
+═══════════════
+
+1. Registra o scarica almeno 2-3 file per ogni cartella
+2. Nominali come vuoi! (es: grido.wav, urlo.mp3, scream.ogg)
+3. Copiali nella struttura corretta
+4. Avvia: npm run dev
+5. FATTO! Il gioco li trova e carica automaticamente
+
+🎯 ESEMPIO COMPLETO
+══════════════════
+
+/sounds
+   ├── byte/
+   │    ├── low/
+   │    │     ├── ahi.wav
+   │    │     ├── ouch.wav
+   │    │     └── auch.mp3
+   │    ├── med/
+   │    │     ├── ahio.wav
+   │    │     ├── mannaggia.wav
+   │    │     ├── dolor.mp3
+   │    │     └── urlo.ogg
+   │    └── hig/
+   │          ├── aaaargh.wav
+   │          ├── noooo.wav
+   │          ├── dannazione.mp3
+   │          └── aiuto.wav
+   ├── kill/
+   │     ├── morto.wav
+   │     ├── muoio.mp3
+   │     └── addio.ogg
+   └── frust/
+         ├── accidenti.wav
+         ├── porcaccia.mp3
+         └── maledetti.wav
+
+Quando avvii npm run dev vedrai:
+
+🔊 Generating sounds.json manifest...
+✅ sounds.json generated:
+   - Byte/Low: 3 files
+   - Byte/Med: 4 files
+   - Byte/Hig: 4 files
+   - Kill: 3 files
+   - Frust: 3 files
+   Total: 17 audio files
+
+   Found in byte/low: ahi.wav, auch.mp3, ouch.wav
+   Found in byte/med: ahio.wav, dolor.mp3, mannaggia.wav, urlo.ogg
+   ...
+
+📝 FORMATI SUPPORTATI
+═══════════════════
+
+✅ WAV  ← Raccomandato (qualità max, compatibilità 100%)
+✅ MP3  ← Alternativa (file più piccoli)
+✅ OGG  ← Fallback
+
+Puoi mixare formati diversi nella stessa cartella!
+
+⚠️ IMPORTANTE
+════════════
+
+✅ I NOMI DEI FILE NON IMPORTANO!
+   Usa nomi descrittivi che preferisci
+
+✅ PUOI MIXARE FORMATI
+   .wav, .mp3, .ogg nella stessa cartella
+
+❌ NON modificare sounds.json manualmente
+   Viene rigenerato ogni volta che avvii il gioco
+
+❌ NON mettere file nelle cartelle sbagliate
+   Rispetta la struttura byte/low, byte/med, ecc.
+
+✅ AGGIUNGI ALMENO 2 FILE per cartella
+   Serve per la varietà audio
+
+🔊 NESSUN FILE?
+═════════════
+
+Se non hai ancora file audio, lo script crea un manifest vuoto:
+
+⚠️ No audio files found in /sounds/ directories
+   Creating empty sounds.json manifest...
+
+Il gioco funziona comunque (senza suoni).
+
+🎨 PERSONALIZZAZIONE
+═══════════════════
+
+Puoi creare "sound pack" tematici:
+
+COMICO    → Suoni buffi ed esagerati
+REALISTICO → Urli veri e naturali
+RETRO     → Effetti 8-bit stile arcade
+MEME      → Citazioni famose o battute
+
+Basta copiare i file giusti nelle cartelle!
+
+🚀 RIASSUNTO
+═══════════
+
+1. Copia file audio nelle cartelle ✓
+2. Avvia: npm run dev ✓
+3. Lo script genera sounds.json ✓
+4. Il gioco carica i suoni ✓
+5. Gioca e ascolta! ✓
+
+NON SERVE ALTRO! È COMPLETAMENTE AUTOMATICO! 🎮🔊
+
+📚 RISORSE GRATUITE
+══════════════════
+
+Trova suoni gratis su:
+
+  • Freesound.org      ← Database enorme
+  • OpenGameArt.org    ← Audio per giochi
+  • Zapsplat.com       ← Effetti sonori
+  • SoundBible.com     ← Libreria semplice
+
+Buon divertimento con Scravagghi! 🪲💥
