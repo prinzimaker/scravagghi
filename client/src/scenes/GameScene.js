@@ -1134,6 +1134,11 @@ export class GameScene extends Phaser.Scene {
       (weaponType, weaponDef) => {
         this.isSelectingWeapon = false;
 
+        // Reset di tutti i tasti dopo la chiusura del selettore
+        if (this.keys) {
+          Object.values(this.keys).forEach(key => key.reset());
+        }
+
         if (weaponType && weaponDef) {
           console.log(`🔫 Selected weapon: ${weaponDef.name}`);
           // Aggiorna l'arma nell'AimController

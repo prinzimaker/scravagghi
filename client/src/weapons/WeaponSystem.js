@@ -348,6 +348,14 @@ export class WeaponSelector {
     this.inventory = inventory;
     this.onWeaponSelected = callback;
 
+    // Reset dello stato dei tasti per evitare input "sporchi"
+    if (this.keys) {
+      this.keys.left.reset();
+      this.keys.right.reset();
+      this.keys.enter.reset();
+      this.keys.esc.reset();
+    }
+
     // Trova l'indice dell'arma corrente
     const currentWeapon = inventory.getCurrentWeapon();
     this.selectedIndex = this.weaponSlots.findIndex(s => s.type === currentWeapon);
@@ -379,6 +387,17 @@ export class WeaponSelector {
 
     this.isVisible = false;
     this.inputEnabled = false;
+
+    // Reset dello stato dei tasti per evitare input "sporchi"
+    if (this.keys) {
+      this.keys.left.reset();
+      this.keys.right.reset();
+      this.keys.enter.reset();
+      this.keys.esc.reset();
+      this.keys.up.reset();
+      this.keys.down.reset();
+      this.keys.space.reset();
+    }
 
     // Anima l'uscita
     this.scene.tweens.add({
