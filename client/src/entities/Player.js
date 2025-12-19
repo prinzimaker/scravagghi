@@ -239,7 +239,7 @@ export class Player {
   drawLegs(phase) {
     if (!this.legs || this.legs.length < 6) return;
 
-    const legLength = 6;
+    const legLength = 8; // Zampe più lunghe per visibilità
     const bodyOffsetY = -6;
     const legColor = 0x3d2817; // Marrone zampe (uguale per tutti)
 
@@ -253,28 +253,33 @@ export class Player {
       { x: 4, y: bodyOffsetY + 3 },   // Zampa posteriore destra
     ];
 
-    // Animazione: le zampe si muovono in gruppi alternati
-    const wave = Math.sin(phase * 0.3) * 4;
+    // Animazione: le zampe si muovono in gruppi alternati con maggiore ampiezza
+    // Frequenza più alta (0.8 invece di 0.3) e ampiezza maggiore (8 invece di 4)
+    const wave = Math.sin(phase * 0.8) * 8;
 
     this.legs.forEach((leg, i) => {
       leg.clear();
-      leg.lineStyle(1.5, legColor);
+      leg.lineStyle(2, legColor); // Linea più spessa per visibilità
 
       const pos = legPositions[i];
       const isLeftSide = i % 2 === 0;
-      const groupOffset = (i < 2 || i >= 4) ? wave : -wave;
+
+      // Schema di camminata alternato: gruppi 1-4 e 2-3-5-6 si alternano
+      // Simula il movimento reale di un insetto
+      const isGroupA = (i === 0 || i === 3 || i === 4);
+      const groupOffset = isGroupA ? wave : -wave;
 
       // Punto di partenza (sul corpo)
       const startX = pos.x;
       const startY = pos.y;
 
-      // Punto finale (estremità zampa)
+      // Punto finale (estremità zampa) con movimento verticale più pronunciato
       const endX = startX + (isLeftSide ? -legLength : legLength);
-      const endY = startY + groupOffset * 0.5;
+      const endY = startY + groupOffset * 0.6;
 
-      // Disegna zampa con ginocchio
-      const kneeX = startX + (isLeftSide ? -3 : 3);
-      const kneeY = startY - 2 + groupOffset * 0.3;
+      // Disegna zampa con ginocchio che si alza quando cammina
+      const kneeX = startX + (isLeftSide ? -4 : 4);
+      const kneeY = startY - 3 + groupOffset * 0.4;
 
       leg.moveTo(startX, startY);
       leg.lineTo(kneeX, kneeY);
@@ -294,7 +299,8 @@ export class Player {
 
     if (moved) {
       this.isMoving = true;
-      this.legAnimPhase += 0.5;
+      // Animazione zampe più veloce per visibilità
+      this.legAnimPhase += 1.2;
       this.drawLegs(this.legAnimPhase);
 
       // Direzione (flip orizzontale) - mantieni la scala base

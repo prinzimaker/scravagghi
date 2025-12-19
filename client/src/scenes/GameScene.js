@@ -2,6 +2,7 @@ import { TerrainMask } from '../terrain/TerrainMask.js';
 import { Player } from '../entities/Player.js';
 import { Physics } from '../physics/Physics.js';
 import { AimController } from '../input/AimController.js';
+import { KeyboardManager } from '../input/KeyboardManager.js';
 import { DeterministicRandom } from '../utils/DeterministicRandom.js';
 import { SoundManager } from '../managers/SoundManager.js';
 import { WeaponSelector, WeaponDefinitions, WeaponType } from '../weapons/WeaponSystem.js';
@@ -70,21 +71,13 @@ export class GameScene extends Phaser.Scene {
     // Render terreno
     this.renderTerrain();
 
+    // Inizializza il keyboard manager personalizzato
+    this.keyboardManager = new KeyboardManager(this);
+    this.keys = this.keyboardManager.getKeys();
+
     // Inizializza controller di mira
     this.aimController = new AimController(this);
     this.aimController.create();
-
-    // Crea tutti i tasti in un unico punto (evita duplicati)
-    this.keys = {
-      left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
-      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
-      up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-      down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
-      space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
-      enter: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
-      esc: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC),
-      jump: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C)
-    };
 
     // Stato salto
     this.isJumping = false;
@@ -92,10 +85,10 @@ export class GameScene extends Phaser.Scene {
     // Passa i tasti all'AimController
     this.aimController.setKeys(this.keys);
 
-    // Inizializza selettore armi
+    // Inizializza selettore armi con il nuovo keyboard manager
     this.weaponSelector = new WeaponSelector(this);
     this.weaponSelector.create();
-    this.weaponSelector.setKeys(this.keys);
+    this.weaponSelector.setKeyboardManager(this.keyboardManager);
     this.isSelectingWeapon = false;
 
     // Listener per colpo sparato
@@ -262,7 +255,7 @@ export class GameScene extends Phaser.Scene {
       if (!this.terrain.isSolid(crate.x, crate.y)) {
         crate.revealed = true;
 
-        // Crea lo sprite del pacco
+        // Crea lo sprite del pacco alla posizione originale
         crate.sprite = this.add.text(crate.x, crate.y, '📦', {
           fontSize: '24px'
         });
@@ -274,22 +267,73 @@ export class GameScene extends Phaser.Scene {
         this.tweens.add({
           targets: crate.sprite,
           scale: 1,
-          duration: 300,
-          ease: 'Back.easeOut'
-        });
-
-        // Animazione fluttuante continua
-        this.tweens.add({
-          targets: crate.sprite,
-          y: crate.y - 5,
-          duration: 800,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut'
+          duration: 200,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            // Dopo l'apparizione, applica gravità
+            this.applyCrateGravity(crate);
+          }
         });
 
         console.log(`📦 Crate revealed at (${crate.x}, ${crate.y}) - ${crate.icon}`);
       }
+    });
+  }
+
+  /**
+   * Applica gravità a un pacco rivelato - cade finché non tocca il terreno
+   */
+  applyCrateGravity(crate) {
+    if (!crate.sprite || crate.collected) return;
+
+    // Trova la posizione del terreno sotto il pacco
+    const groundY = this.terrain.getGroundY(Math.floor(crate.x));
+
+    // Se il pacco è già a terra o sotto, niente gravità
+    if (crate.y >= groundY - 12) {
+      // Inizia animazione fluttuante
+      this.startCrateFloatAnimation(crate, groundY - 12);
+      return;
+    }
+
+    // Calcola distanza di caduta
+    const fallDistance = groundY - 12 - crate.y;
+    const fallDuration = Math.min(800, Math.max(200, fallDistance * 3));
+
+    // Anima la caduta con rimbalzo
+    this.tweens.add({
+      targets: crate.sprite,
+      y: groundY - 12, // 12 pixel sopra il terreno
+      duration: fallDuration,
+      ease: 'Bounce.easeOut',
+      onUpdate: () => {
+        // Aggiorna posizione logica del pacco
+        crate.y = crate.sprite.y;
+      },
+      onComplete: () => {
+        // Aggiorna posizione finale
+        crate.y = groundY - 12;
+
+        // Inizia animazione fluttuante
+        this.startCrateFloatAnimation(crate, crate.y);
+      }
+    });
+  }
+
+  /**
+   * Inizia l'animazione fluttuante di un pacco
+   */
+  startCrateFloatAnimation(crate, baseY) {
+    if (!crate.sprite || crate.collected) return;
+
+    // Animazione fluttuante continua
+    this.tweens.add({
+      targets: crate.sprite,
+      y: baseY - 5,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
     });
   }
 
@@ -640,8 +684,8 @@ export class GameScene extends Phaser.Scene {
    */
   startTurn() {
     // Reset di tutti i tasti per evitare input bufferizzati
-    if (this.keys) {
-      Object.values(this.keys).forEach(key => key.reset());
+    if (this.keyboardManager) {
+      this.keyboardManager.forceReset();
     }
     this.isJumping = false;
 
@@ -1010,6 +1054,7 @@ export class GameScene extends Phaser.Scene {
    */
   animateProjectile(result) {
     const weaponDef = result.weaponDef || WeaponDefinitions[WeaponType.POOP_BALL];
+    const weaponType = result.weaponType || WeaponType.POOP_BALL;
 
     // Per granate con esplosione ritardata, il timer parte dal lancio
     const isTimedGrenade = weaponDef.delayedExplosion && !weaponDef.explodeOnImpact;
@@ -1017,24 +1062,71 @@ export class GameScene extends Phaser.Scene {
     let grenadeTimer = null;
     let countdownText = null;
 
-    // Crea il proiettile con l'icona dell'arma
+    // Crea il proiettile appropriato per il tipo di arma
     let projectile;
-    if (weaponDef.icon) {
-      projectile = this.add.text(
-        result.trajectory[0].x,
-        result.trajectory[0].y,
-        weaponDef.icon,
-        { fontSize: '16px' }
-      );
+    const startX = result.trajectory[0].x;
+    const startY = result.trajectory[0].y;
+
+    if (weaponType === WeaponType.PISTOL) {
+      // PISTOLA: proiettile piccolo e giallo/dorato
+      projectile = this.add.graphics();
+      projectile.fillStyle(0xffdd00, 1); // Giallo dorato
+      projectile.fillEllipse(0, 0, 8, 4); // Ellisse orizzontale per bullet
+      projectile.lineStyle(1, 0xcc9900);
+      projectile.strokeEllipse(0, 0, 8, 4);
+      projectile.setPosition(startX, startY);
+
+      // Aggiungi scia luminosa
+      this.createBulletTrail(projectile);
+
+    } else if (weaponType === WeaponType.BAZOOKA) {
+      // BAZOOKA: razzo con fiamma
+      projectile = this.add.container(startX, startY);
+
+      // Corpo del razzo
+      const rocketBody = this.add.graphics();
+      rocketBody.fillStyle(0x666666, 1); // Grigio metallico
+      rocketBody.fillRect(-10, -3, 20, 6); // Corpo allungato
+
+      // Punta del razzo (rossa)
+      rocketBody.fillStyle(0xff0000, 1);
+      rocketBody.fillTriangle(10, -4, 10, 4, 16, 0);
+
+      // Alette posteriori
+      rocketBody.fillStyle(0x444444, 1);
+      rocketBody.fillTriangle(-10, -3, -10, -7, -6, -3);
+      rocketBody.fillTriangle(-10, 3, -10, 7, -6, 3);
+
+      projectile.add(rocketBody);
+
+      // Fiamma del razzo (animata)
+      const flame = this.add.graphics();
+      flame.fillStyle(0xff6600, 0.8);
+      flame.fillTriangle(-10, -2, -10, 2, -18, 0);
+      flame.fillStyle(0xffff00, 0.6);
+      flame.fillTriangle(-10, -1, -10, 1, -14, 0);
+      projectile.add(flame);
+
+      // Anima la fiamma
+      this.tweens.add({
+        targets: flame,
+        scaleX: { from: 0.8, to: 1.2 },
+        scaleY: { from: 0.8, to: 1.2 },
+        alpha: { from: 0.6, to: 1 },
+        duration: 50,
+        yoyo: true,
+        repeat: -1
+      });
+
+    } else if (weaponDef.icon) {
+      // Altri proiettili: usa l'icona
+      projectile = this.add.text(startX, startY, weaponDef.icon, { fontSize: '16px' });
       projectile.setOrigin(0.5);
     } else {
-      projectile = this.add.circle(
-        result.trajectory[0].x,
-        result.trajectory[0].y,
-        4,
-        0xffff00
-      );
+      // Default: cerchio giallo
+      projectile = this.add.circle(startX, startY, 4, 0xffff00);
     }
+
     projectile.setDepth(5); // Sopra terreno, visibile durante volo
 
     // Per granate: avvia timer dal lancio e entra in fase fuga
@@ -1132,8 +1224,62 @@ export class GameScene extends Phaser.Scene {
           return;
         }
 
-        const point = result.trajectory[Math.floor(currentPoint)];
+        const pointIndex = Math.floor(currentPoint);
+        const point = result.trajectory[pointIndex];
+        const prevPoint = pointIndex > 0 ? result.trajectory[pointIndex - 1] : point;
+
         projectile.setPosition(point.x, point.y);
+
+        // Ruota il proiettile nella direzione del movimento (per razzo e proiettile)
+        if (weaponType === WeaponType.BAZOOKA || weaponType === WeaponType.PISTOL) {
+          const dx = point.x - prevPoint.x;
+          const dy = point.y - prevPoint.y;
+          if (dx !== 0 || dy !== 0) {
+            const angle = Math.atan2(dy, dx);
+            projectile.setRotation(angle);
+          }
+        }
+      },
+      loop: true
+    });
+  }
+
+  /**
+   * Crea una scia luminosa per il proiettile della pistola
+   */
+  createBulletTrail(projectile) {
+    // La scia viene creata come effetto di particelle semplificate
+    const trail = this.add.graphics();
+    trail.setDepth(4);
+
+    // Aggiorna la scia ad ogni frame
+    let prevPositions = [];
+    const maxTrailLength = 5;
+
+    this.time.addEvent({
+      delay: 16,
+      callback: () => {
+        if (!projectile || !projectile.active) {
+          trail.destroy();
+          return;
+        }
+
+        // Aggiungi posizione corrente
+        prevPositions.push({ x: projectile.x, y: projectile.y });
+
+        // Mantieni solo le ultime N posizioni
+        if (prevPositions.length > maxTrailLength) {
+          prevPositions.shift();
+        }
+
+        // Disegna la scia
+        trail.clear();
+        prevPositions.forEach((pos, i) => {
+          const alpha = (i + 1) / maxTrailLength * 0.5;
+          const size = 2 + (i / maxTrailLength) * 2;
+          trail.fillStyle(0xffff00, alpha);
+          trail.fillCircle(pos.x, pos.y, size);
+        });
       },
       loop: true
     });
@@ -1624,29 +1770,45 @@ export class GameScene extends Phaser.Scene {
 
     // Calcola la differenza di altezza
     const heightDiff = fromGroundY - toGroundY; // Positivo = salita, Negativo = discesa
-    const horizontalDist = Math.abs(toX - fromX);
 
-    // Se stiamo scendendo, sempre permesso
+    // Se stiamo scendendo o restiamo allo stesso livello, sempre permesso
     if (heightDiff <= 0) {
       return true;
     }
 
-    // Calcola la pendenza (quanto saliamo per pixel orizzontale)
-    const slope = heightDiff / horizontalDist;
+    // Per salite piccole (≤ 3 pixel), permettiamo sempre
+    // Questo include l'erba e le piccole irregolarità del terreno
+    if (heightDiff <= 3) {
+      return true;
+    }
 
-    // Pendenza massima permessa (circa 45-60 gradi)
-    // slope = 1.0 significa 45 gradi
-    // slope = 1.73 significa circa 60 gradi
-    const maxSlope = 1.5;
+    // Per salite più grandi, usa la pendenza su un campione più largo
+    // Invece di usare il movimento corrente, campiona su 10 pixel
+    const sampleDist = 10;
+    const direction = toX > fromX ? 1 : -1;
+    const sampleToX = Math.floor(fromX) + (sampleDist * direction);
+    const sampleToGroundY = this.terrain.getGroundY(sampleToX);
+    const sampleHeightDiff = fromGroundY - sampleToGroundY;
+
+    // Se stiamo scendendo nel campione, permesso
+    if (sampleHeightDiff <= 0) {
+      return true;
+    }
+
+    // Calcola la pendenza sul campione più largo
+    const slope = sampleHeightDiff / sampleDist;
+
+    // Pendenza massima permessa (circa 60 gradi = tan(60°) ≈ 1.73)
+    const maxSlope = 1.73;
 
     // Se la pendenza è troppo ripida, non si può salire
     if (slope > maxSlope) {
       return false;
     }
 
-    // Controlla anche se c'è un soffitto (overhang) sopra la destinazione
-    // Cerca se c'è terreno solido sopra la testa del cockroach
-    const cockroachHeight = 15;
+    // Controlla se c'è un soffitto (overhang) sopra la destinazione
+    // Usa l'altezza effettiva del cockroach scalato
+    const cockroachHeight = this.activePlayer ? this.activePlayer.height : 24;
     for (let y = toGroundY - cockroachHeight; y < toGroundY; y++) {
       if (this.terrain.isSolid(Math.floor(toX), Math.floor(y))) {
         // C'è un ostacolo sopra, non possiamo passare
@@ -1658,7 +1820,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Esegue un salto (50px avanti, 30px altezza)
+   * Esegue un salto (50px avanti, 30px altezza) con traiettoria ad arco e collisioni
    */
   performJump() {
     if (!this.activePlayer || this.isJumping) return;
@@ -1669,70 +1831,163 @@ export class GameScene extends Phaser.Scene {
     const startY = this.activePlayer.position.y;
 
     // Direzione del salto basata sulla direzione dello scarafaggio
-    const direction = this.activePlayer.container.scaleX > 0 ? 1 : -1; // Normalizza a 1 o -1
+    const direction = this.activePlayer.container.scaleX > 0 ? 1 : -1;
     const jumpDistanceX = 50 * direction;
     const jumpHeight = 30;
 
-    // Calcola posizione finale
-    let targetX = startX + jumpDistanceX;
-    targetX = Math.max(20, Math.min(this.gameWidth - 20, targetX));
-
     // Perde punti per il salto
     this.activePlayer.addScore(-5);
+
+    // Calcola la traiettoria parabolica
+    const numSteps = 30;
+    const trajectory = [];
+
+    for (let i = 0; i <= numSteps; i++) {
+      const t = i / numSteps;
+      // Posizione X: movimento lineare
+      const x = startX + jumpDistanceX * t;
+      // Posizione Y: parabola (4*h*t*(1-t) per arco perfetto)
+      const y = startY - 4 * jumpHeight * t * (1 - t);
+      trajectory.push({ x, y, t });
+    }
+
+    // Verifica collisioni lungo la traiettoria
+    let collisionPoint = null;
+    let collisionIndex = -1;
+
+    for (let i = 1; i < trajectory.length; i++) {
+      const point = trajectory[i];
+
+      // Controlla se il punto è dentro il terreno
+      if (this.terrain.isSolid(Math.floor(point.x), Math.floor(point.y))) {
+        collisionPoint = trajectory[i - 1]; // Usa il punto precedente
+        collisionIndex = i - 1;
+        break;
+      }
+
+      // Controlla se il punto è fuori dai limiti
+      if (point.x < 10 || point.x > this.gameWidth - 10) {
+        collisionPoint = trajectory[i - 1];
+        collisionIndex = i - 1;
+        break;
+      }
+    }
+
+    // Se c'è collisione, tronca la traiettoria
+    const finalTrajectory = collisionPoint
+      ? trajectory.slice(0, collisionIndex + 1)
+      : trajectory;
+
+    // Punto finale
+    let landingX, landingY;
+    const lastPoint = finalTrajectory[finalTrajectory.length - 1];
+
+    if (collisionPoint) {
+      // Sbatte contro un ostacolo - cade verticalmente dal punto di collisione
+      landingX = collisionPoint.x;
+      landingY = this.terrain.getGroundY(Math.floor(landingX));
+    } else {
+      // Atterraggio normale
+      landingX = startX + jumpDistanceX;
+      landingX = Math.max(20, Math.min(this.gameWidth - 20, landingX));
+      landingY = this.terrain.getGroundY(Math.floor(landingX));
+    }
 
     // Anima le zampe durante il salto
     let legPhase = 0;
     const legTimer = this.time.addEvent({
       delay: 30,
       callback: () => {
-        legPhase += 0.8;
+        legPhase += 1.5;
         this.activePlayer.drawLegs(legPhase);
       },
-      repeat: 20
+      repeat: 30
     });
 
-    // Fase 1: Salto verso l'alto e in avanti
-    this.tweens.add({
-      targets: this.activePlayer.position,
-      x: startX + jumpDistanceX * 0.5,
-      y: startY - jumpHeight,
-      duration: 200,
-      ease: 'Quad.easeOut',
-      onUpdate: () => {
+    // Anima lungo la traiettoria
+    let currentStep = 0;
+    const jumpDuration = collisionPoint ? 300 : 400;
+    const stepDelay = jumpDuration / finalTrajectory.length;
+
+    const jumpTimer = this.time.addEvent({
+      delay: stepDelay,
+      callback: () => {
+        currentStep++;
+
+        if (currentStep >= finalTrajectory.length) {
+          // Fine della traiettoria - gestisci atterraggio o caduta
+          jumpTimer.remove();
+
+          if (collisionPoint) {
+            // Sbattuto! Mostra effetto impatto
+            const impactText = this.add.text(collisionPoint.x, collisionPoint.y - 20, '💫', {
+              fontSize: '20px'
+            });
+            impactText.setOrigin(0.5);
+            impactText.setDepth(25);
+
+            this.tweens.add({
+              targets: impactText,
+              alpha: 0,
+              y: collisionPoint.y - 50,
+              duration: 500,
+              onComplete: () => impactText.destroy()
+            });
+
+            // Cade giù dal punto di collisione
+            this.tweens.add({
+              targets: this.activePlayer.position,
+              y: landingY,
+              duration: 200,
+              ease: 'Bounce.easeOut',
+              onUpdate: () => this.activePlayer.updateSprite(),
+              onComplete: () => this.finishJump(legTimer, landingX, landingY)
+            });
+          } else {
+            // Atterraggio normale
+            this.tweens.add({
+              targets: this.activePlayer.position,
+              y: landingY,
+              duration: 100,
+              ease: 'Quad.easeIn',
+              onUpdate: () => this.activePlayer.updateSprite(),
+              onComplete: () => this.finishJump(legTimer, landingX, landingY)
+            });
+          }
+          return;
+        }
+
+        // Muovi allo step corrente
+        const point = finalTrajectory[currentStep];
+        this.activePlayer.position.x = point.x;
+        this.activePlayer.position.y = point.y;
         this.activePlayer.updateSprite();
       },
-      onComplete: () => {
-        // Fase 2: Discesa verso il terreno
-        const landingX = targetX;
-        const landingY = this.terrain.getGroundY(Math.floor(landingX));
-
-        this.tweens.add({
-          targets: this.activePlayer.position,
-          x: landingX,
-          y: landingY,
-          duration: 250,
-          ease: 'Quad.easeIn',
-          onUpdate: () => {
-            this.activePlayer.updateSprite();
-          },
-          onComplete: () => {
-            // Atterraggio
-            legTimer.remove();
-            this.activePlayer.drawLegs(0);
-            this.isJumping = false;
-
-            // Aggiorna posizione mira se in fase aiming
-            if (this.gamePhase === 'aiming') {
-              this.aimController.shooterX = landingX;
-              this.aimController.shooterY = landingY - this.activePlayer.height;
-            }
-
-            // Reset del tasto per evitare problemi
-            this.keys.jump.reset();
-          }
-        });
-      }
+      loop: true
     });
+  }
+
+  /**
+   * Completa il salto e resetta lo stato
+   */
+  finishJump(legTimer, landingX, landingY) {
+    legTimer.remove();
+    this.activePlayer.drawLegs(0);
+    this.isJumping = false;
+
+    // Controlla raccolta pacchi
+    this.checkCrateCollection(this.activePlayer);
+
+    // Aggiorna posizione mira se in fase aiming
+    if (this.gamePhase === 'aiming') {
+      this.aimController.shooterX = landingX;
+      this.aimController.shooterY = landingY - this.activePlayer.height;
+    }
+
+    // Reset del tasto jump usando il keyboard manager
+    if (this.keyboardManager) {
+      this.keyboardManager.resetKey('jump');
+    }
   }
 
   /**
@@ -1855,8 +2110,8 @@ export class GameScene extends Phaser.Scene {
         this.isSelectingWeapon = false;
 
         // Reset di tutti i tasti dopo la chiusura del selettore
-        if (this.keys) {
-          Object.values(this.keys).forEach(key => key.reset());
+        if (this.keyboardManager) {
+          this.keyboardManager.forceReset();
         }
 
         if (weaponType && weaponDef) {
@@ -1906,9 +2161,9 @@ export class GameScene extends Phaser.Scene {
       this.weaponSelector.update();
     }
 
-    // Gestione apertura selettore armi con ENTER
+    // Gestione apertura selettore armi con ENTER (usa KeyboardManager)
     if (this.gamePhase === 'aiming' && !this.isSelectingWeapon && this.activePlayer) {
-      if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
+      if (this.keyboardManager.justPressed('enter')) {
         this.openWeaponSelector();
       }
     }
@@ -1955,8 +2210,8 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // SALTO con tasto C (50px avanti, 30px altezza)
-      if (Phaser.Input.Keyboard.JustDown(this.keys.jump) && !this.isJumping) {
+      // SALTO con tasto C (50px avanti, 30px altezza) - usa KeyboardManager
+      if (this.keyboardManager.justPressed('jump') && !this.isJumping) {
         this.performJump();
       }
     }
