@@ -68,6 +68,9 @@ export class GameScene extends Phaser.Scene {
     // Inizializza giocatori (nuovo sistema!)
     this.initPlayers();
 
+    // Render sfondo stile Worms classico
+    this.renderWormsBackground();
+
     // Render terreno
     this.renderTerrain();
 
@@ -406,12 +409,132 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Renderizza il terreno come texture (campagna erbosa)
+   * Renderizza lo sfondo stile Worms classico (1995)
+   * - Cielo sfumato blu
+   * - Nuvole animate
+   * - Acqua in fondo
+   */
+  renderWormsBackground() {
+    const bgGraphics = this.add.graphics();
+    bgGraphics.setDepth(-10); // Sfondo dietro tutto
+
+    // === CIELO SFUMATO ===
+    // Gradiente dal celeste chiaro (top) al blu più scuro (bottom)
+    const skyTop = { r: 135, g: 206, b: 250 };     // Celeste chiaro
+    const skyBottom = { r: 70, g: 130, b: 180 };   // Blu acciaio
+
+    // Altezza del cielo (dove inizia l'acqua)
+    const waterLevel = this.gameHeight - 40;
+
+    for (let y = 0; y < waterLevel; y++) {
+      const ratio = y / waterLevel;
+      const r = Math.floor(skyTop.r + (skyBottom.r - skyTop.r) * ratio);
+      const g = Math.floor(skyTop.g + (skyBottom.g - skyTop.g) * ratio);
+      const b = Math.floor(skyTop.b + (skyBottom.b - skyTop.b) * ratio);
+
+      const color = Phaser.Display.Color.GetColor(r, g, b);
+      bgGraphics.fillStyle(color, 1);
+      bgGraphics.fillRect(0, y, this.gameWidth, 1);
+    }
+
+    // === ACQUA ===
+    // L'acqua è nella parte inferiore, sotto il terreno
+    // Gradiente dal blu chiaro (superficie) al blu scuro (fondo)
+    const waterTop = { r: 30, g: 100, b: 180 };
+    const waterBottom = { r: 10, g: 40, b: 100 };
+
+    for (let y = waterLevel; y < this.gameHeight; y++) {
+      const ratio = (y - waterLevel) / (this.gameHeight - waterLevel);
+      const r = Math.floor(waterTop.r + (waterBottom.r - waterTop.r) * ratio);
+      const g = Math.floor(waterTop.g + (waterBottom.g - waterTop.g) * ratio);
+      const b = Math.floor(waterTop.b + (waterBottom.b - waterTop.b) * ratio);
+
+      const color = Phaser.Display.Color.GetColor(r, g, b);
+      bgGraphics.fillStyle(color, 1);
+      bgGraphics.fillRect(0, y, this.gameWidth, 1);
+    }
+
+    // === ONDE DELL'ACQUA (effetto superficie) ===
+    bgGraphics.fillStyle(0x4080c0, 0.6);
+    for (let x = 0; x < this.gameWidth; x += 8) {
+      const waveOffset = Math.sin(x * 0.05) * 2;
+      bgGraphics.fillRect(x, waterLevel + waveOffset, 6, 2);
+    }
+
+    // === NUVOLE ===
+    this.clouds = [];
+    const rng = new DeterministicRandom(this.gameSeed + 500);
+
+    // Crea 5-8 nuvole
+    const numClouds = rng.nextInt(5, 8);
+    for (let i = 0; i < numClouds; i++) {
+      const cloudX = rng.nextFloat(0, this.gameWidth);
+      const cloudY = rng.nextFloat(30, 150);
+      const cloudScale = rng.nextFloat(0.6, 1.2);
+      const cloudSpeed = rng.nextFloat(5, 15); // pixel al secondo
+
+      const cloud = this.createCloud(cloudX, cloudY, cloudScale);
+      this.clouds.push({ sprite: cloud, speed: cloudSpeed, baseY: cloudY });
+    }
+
+    // === SOLE (opzionale, stile Worms) ===
+    const sunX = this.gameWidth - 80;
+    const sunY = 60;
+
+    // Alone del sole
+    const sunGlow = this.add.graphics();
+    sunGlow.setDepth(-9);
+    sunGlow.fillStyle(0xffff80, 0.3);
+    sunGlow.fillCircle(sunX, sunY, 50);
+    sunGlow.fillStyle(0xffff00, 0.4);
+    sunGlow.fillCircle(sunX, sunY, 35);
+
+    // Sole
+    const sun = this.add.graphics();
+    sun.setDepth(-8);
+    sun.fillStyle(0xffee00, 1);
+    sun.fillCircle(sunX, sunY, 25);
+    sun.fillStyle(0xffff80, 1);
+    sun.fillCircle(sunX - 5, sunY - 5, 10);
+
+    this.backgroundGraphics = bgGraphics;
+  }
+
+  /**
+   * Crea una singola nuvola (stile Worms pixelato)
+   */
+  createCloud(x, y, scale) {
+    const cloud = this.add.graphics();
+    cloud.setDepth(-5);
+    cloud.setPosition(x, y);
+    cloud.setScale(scale);
+
+    // Nuvola fatta di cerchi sovrapposti (stile cartoon)
+    cloud.fillStyle(0xffffff, 0.9);
+
+    // Forma base della nuvola
+    cloud.fillCircle(0, 0, 20);
+    cloud.fillCircle(-25, 5, 15);
+    cloud.fillCircle(25, 5, 18);
+    cloud.fillCircle(-15, -10, 12);
+    cloud.fillCircle(15, -8, 14);
+    cloud.fillCircle(35, 10, 12);
+    cloud.fillCircle(-35, 8, 10);
+
+    // Ombra sotto la nuvola
+    cloud.fillStyle(0xcccccc, 0.5);
+    cloud.fillEllipse(0, 15, 70, 10);
+
+    return cloud;
+  }
+
+  /**
+   * Renderizza il terreno come texture (stile Worms classico)
    */
   renderTerrain() {
     // Crea texture per il terreno
     const graphics = this.add.graphics();
-    graphics.setDepth(0); // Terreno in fondo
+    graphics.setDepth(0); // Terreno sopra sfondo ma sotto i giocatori
 
     // Trova la superficie per ogni colonna (per disegnare l'erba)
     const surfaceY = [];
@@ -419,43 +542,66 @@ export class GameScene extends Phaser.Scene {
       surfaceY[x] = this.terrain.getGroundY(x);
     }
 
-    // Disegna il terreno pixel per pixel
+    // === PRIMO PASSAGGIO: Disegna il bordo scuro (outline stile Worms) ===
+    const outlineGraphics = this.add.graphics();
+    outlineGraphics.setDepth(-1); // Sotto il terreno principale
+
+    for (let x = 0; x < this.gameWidth; x++) {
+      for (let y = 0; y < this.gameHeight; y++) {
+        if (this.terrain.isSolid(x, y)) {
+          // Controlla se è un pixel di bordo (ha un vicino vuoto)
+          const isEdge = !this.terrain.isSolid(x - 1, y) ||
+                         !this.terrain.isSolid(x + 1, y) ||
+                         !this.terrain.isSolid(x, y - 1) ||
+                         !this.terrain.isSolid(x, y + 1);
+
+          if (isEdge) {
+            // Bordo scuro marrone
+            outlineGraphics.fillStyle(0x2a1a0a, 1);
+            outlineGraphics.fillRect(x - 1, y - 1, 3, 3);
+          }
+        }
+      }
+    }
+
+    // === SECONDO PASSAGGIO: Disegna il terreno colorato ===
     for (let x = 0; x < this.gameWidth; x++) {
       for (let y = 0; y < this.gameHeight; y++) {
         if (this.terrain.isSolid(x, y)) {
           // Calcola profondità dalla superficie
           const depth = y - surfaceY[x];
 
-          // Noise per variazione naturale
+          // Noise per variazione naturale (stile Worms pixelato)
           const noise = ((x * 7 + y * 13) % 20) / 20;
           const noise2 = ((x * 11 + y * 3) % 15) / 15;
+          const dither = ((x + y) % 2) * 0.1; // Effetto dithering
 
           let r, g, b;
 
           if (depth < 3) {
-            // ERBA - superficie (verde brillante)
-            const grassShade = 20 + noise * 30;
-            r = 50 + grassShade * 0.3;
-            g = 140 + grassShade;
-            b = 40 + grassShade * 0.2;
+            // ERBA - superficie (verde brillante stile Worms)
+            const grassShade = 15 + noise * 25 + dither * 20;
+            r = 40 + grassShade * 0.3;
+            g = 150 + grassShade;
+            b = 30 + grassShade * 0.2;
           } else if (depth < 8) {
             // RADICI/TERRA SUPERFICIALE (marrone chiaro con verde)
-            const soilShade = noise * 25;
-            r = 100 + soilShade;
-            g = 80 + soilShade * 0.7 + (8 - depth) * 5; // sfumatura verde
-            b = 50 + soilShade * 0.3;
-          } else if (depth < 25) {
-            // TERRA (marrone medio)
-            const earthShade = noise * 20 + noise2 * 10;
-            r = 120 + earthShade;
-            g = 85 + earthShade * 0.6;
-            b = 55 + earthShade * 0.3;
+            const soilShade = noise * 20 + dither * 15;
+            r = 110 + soilShade;
+            g = 85 + soilShade * 0.7 + (8 - depth) * 6;
+            b = 45 + soilShade * 0.3;
+          } else if (depth < 30) {
+            // TERRA (marrone medio con pattern)
+            const earthShade = noise * 25 + noise2 * 15 + dither * 10;
+            r = 130 + earthShade;
+            g = 90 + earthShade * 0.5;
+            b = 50 + earthShade * 0.2;
           } else {
             // TERRA PROFONDA/ROCCIA (marrone scuro)
-            const rockShade = noise * 15;
-            r = 90 + rockShade;
-            g = 70 + rockShade * 0.5;
-            b = 50 + rockShade * 0.3;
+            const rockShade = noise * 20 + dither * 10;
+            r = 100 + rockShade;
+            g = 75 + rockShade * 0.5;
+            b = 45 + rockShade * 0.3;
           }
 
           const color = Phaser.Display.Color.GetColor(
@@ -469,38 +615,55 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Aggiungi fili d'erba sulla superficie
+    // === TERZO PASSAGGIO: Aggiungi fili d'erba sulla superficie ===
     for (let x = 0; x < this.gameWidth; x += 2) {
       const groundY = surfaceY[x];
-      if (groundY < this.gameHeight) {
+      if (groundY < this.gameHeight && groundY > 0) {
         // Altezza variabile dell'erba
-        const grassHeight = 3 + Math.floor(((x * 7) % 5));
+        const grassHeight = 4 + Math.floor(((x * 7) % 5));
+        const grassShade = ((x * 3) % 40);
         const grassColor = Phaser.Display.Color.GetColor(
-          30 + ((x * 3) % 30),
-          120 + ((x * 7) % 40),
-          20 + ((x * 11) % 20)
+          25 + grassShade * 0.5,
+          130 + grassShade,
+          15 + grassShade * 0.3
         );
 
-        graphics.fillStyle(grassColor, 0.8);
+        graphics.fillStyle(grassColor, 0.9);
         for (let i = 0; i < grassHeight; i++) {
-          const offsetX = Math.floor(Math.sin(x * 0.1 + i * 0.5) * 1);
+          const offsetX = Math.floor(Math.sin(x * 0.15 + i * 0.5) * 1.5);
           graphics.fillRect(x + offsetX, groundY - i - 1, 1, 1);
         }
       }
     }
 
     this.terrainGraphics = graphics;
+    this.outlineGraphics = outlineGraphics;
   }
 
   /**
-   * Aggiorna il rendering del terreno dopo una modifica
+   * Aggiorna il rendering del terreno dopo una modifica (esplosione)
    */
   updateTerrainGraphics(x, y, radius) {
-    // Ridisegna solo l'area modificata
-    const minX = Math.max(0, x - radius - 5);
-    const maxX = Math.min(this.gameWidth, x + radius + 5);
-    const minY = Math.max(0, y - radius - 5);
-    const maxY = Math.min(this.gameHeight, y + radius + 5);
+    // Ridisegna un'area più ampia per includere l'outline
+    const minX = Math.max(0, x - radius - 8);
+    const maxX = Math.min(this.gameWidth, x + radius + 8);
+    const minY = Math.max(0, y - radius - 8);
+    const maxY = Math.min(this.gameHeight, y + radius + 8);
+
+    const waterLevel = this.gameHeight - 40;
+
+    // Cancella l'area dell'outline
+    if (this.outlineGraphics) {
+      this.outlineGraphics.fillStyle(0x000000, 0); // Trasparente
+      for (let px = minX; px < maxX; px++) {
+        for (let py = minY; py < maxY; py++) {
+          if (!this.terrain.isSolid(px, py)) {
+            this.outlineGraphics.fillStyle(0x000000, 0);
+            this.outlineGraphics.fillRect(px - 1, py - 1, 3, 3);
+          }
+        }
+      }
+    }
 
     for (let px = minX; px < maxX; px++) {
       // Trova la nuova superficie per questa colonna
@@ -508,41 +671,55 @@ export class GameScene extends Phaser.Scene {
 
       for (let py = minY; py < maxY; py++) {
         if (!this.terrain.isSolid(px, py)) {
-          // Cancella il pixel (sfondo scuro)
-          this.terrainGraphics.fillStyle(0x1a1a2e, 1);
+          // Rendi trasparente (mostra lo sfondo sotto)
+          this.terrainGraphics.fillStyle(0x000000, 0);
           this.terrainGraphics.fillRect(px, py, 1, 1);
         } else {
-          // Ridisegna con colori erbosi
+          // Controlla se è un bordo e disegna outline
+          if (this.outlineGraphics) {
+            const isEdge = !this.terrain.isSolid(px - 1, py) ||
+                           !this.terrain.isSolid(px + 1, py) ||
+                           !this.terrain.isSolid(px, py - 1) ||
+                           !this.terrain.isSolid(px, py + 1);
+
+            if (isEdge) {
+              this.outlineGraphics.fillStyle(0x2a1a0a, 1);
+              this.outlineGraphics.fillRect(px - 1, py - 1, 3, 3);
+            }
+          }
+
+          // Ridisegna con colori stile Worms
           const depth = py - surfaceY;
           const noise = ((px * 7 + py * 13) % 20) / 20;
           const noise2 = ((px * 11 + py * 3) % 15) / 15;
+          const dither = ((px + py) % 2) * 0.1;
 
           let r, g, b;
 
           if (depth < 3) {
             // ERBA
-            const grassShade = 20 + noise * 30;
-            r = 50 + grassShade * 0.3;
-            g = 140 + grassShade;
-            b = 40 + grassShade * 0.2;
+            const grassShade = 15 + noise * 25 + dither * 20;
+            r = 40 + grassShade * 0.3;
+            g = 150 + grassShade;
+            b = 30 + grassShade * 0.2;
           } else if (depth < 8) {
             // RADICI/TERRA SUPERFICIALE
-            const soilShade = noise * 25;
-            r = 100 + soilShade;
-            g = 80 + soilShade * 0.7 + (8 - depth) * 5;
-            b = 50 + soilShade * 0.3;
-          } else if (depth < 25) {
+            const soilShade = noise * 20 + dither * 15;
+            r = 110 + soilShade;
+            g = 85 + soilShade * 0.7 + (8 - depth) * 6;
+            b = 45 + soilShade * 0.3;
+          } else if (depth < 30) {
             // TERRA
-            const earthShade = noise * 20 + noise2 * 10;
-            r = 120 + earthShade;
-            g = 85 + earthShade * 0.6;
-            b = 55 + earthShade * 0.3;
+            const earthShade = noise * 25 + noise2 * 15 + dither * 10;
+            r = 130 + earthShade;
+            g = 90 + earthShade * 0.5;
+            b = 50 + earthShade * 0.2;
           } else {
             // TERRA PROFONDA
-            const rockShade = noise * 15;
-            r = 90 + rockShade;
-            g = 70 + rockShade * 0.5;
-            b = 50 + rockShade * 0.3;
+            const rockShade = noise * 20 + dither * 10;
+            r = 100 + rockShade;
+            g = 75 + rockShade * 0.5;
+            b = 45 + rockShade * 0.3;
           }
 
           const color = Phaser.Display.Color.GetColor(
@@ -2151,6 +2328,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time, delta) {
+    // === ANIMAZIONE NUVOLE (stile Worms) ===
+    if (this.clouds && this.clouds.length > 0) {
+      const deltaSeconds = delta / 1000;
+      this.clouds.forEach(cloudData => {
+        // Muovi la nuvola verso destra
+        cloudData.sprite.x += cloudData.speed * deltaSeconds;
+
+        // Se esce dallo schermo a destra, riportala a sinistra
+        if (cloudData.sprite.x > this.gameWidth + 100) {
+          cloudData.sprite.x = -100;
+        }
+
+        // Leggero movimento verticale ondulatorio
+        const wobble = Math.sin(time * 0.001 + cloudData.baseY) * 2;
+        cloudData.sprite.y = cloudData.baseY + wobble;
+      });
+    }
+
     // Aggiorna controller di mira
     if (this.aimController && !this.isSelectingWeapon) {
       this.aimController.update(delta);
