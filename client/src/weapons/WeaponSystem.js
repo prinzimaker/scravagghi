@@ -262,7 +262,8 @@ export class WeaponSelector {
     this.onWeaponSelected = null;
     this.selectedIndex = 0;
     this.inputEnabled = false;
-    this.keys = null; // Riferimento ai tasti condivisi
+    this.keys = null; // Riferimento ai tasti condivisi (compatibilità)
+    this.keyboardManager = null; // Nuovo keyboard manager
   }
 
   /**
@@ -313,10 +314,18 @@ export class WeaponSelector {
   }
 
   /**
-   * Imposta i riferimenti ai tasti (chiamato da GameScene)
+   * Imposta i riferimenti ai tasti (chiamato da GameScene) - compatibilità
    */
   setKeys(keys) {
     this.keys = keys;
+  }
+
+  /**
+   * Imposta il keyboard manager (nuovo metodo preferito)
+   */
+  setKeyboardManager(keyboardManager) {
+    this.keyboardManager = keyboardManager;
+    this.keys = keyboardManager.getKeys();
   }
 
   /**
@@ -371,11 +380,8 @@ export class WeaponSelector {
     this.onWeaponSelected = callback;
 
     // Reset dello stato dei tasti per evitare input "sporchi"
-    if (this.keys) {
-      this.keys.left.reset();
-      this.keys.right.reset();
-      this.keys.enter.reset();
-      this.keys.esc.reset();
+    if (this.keyboardManager) {
+      this.keyboardManager.forceReset();
     }
 
     // Trova l'indice dell'arma corrente
@@ -397,8 +403,10 @@ export class WeaponSelector {
       ease: 'Back.easeOut'
     });
 
-    // Abilita input
-    this.inputEnabled = true;
+    // Abilita input con piccolo delay per evitare che il tasto ENTER venga rilevato subito
+    this.scene.time.delayedCall(100, () => {
+      this.inputEnabled = true;
+    });
   }
 
   /**
@@ -411,14 +419,8 @@ export class WeaponSelector {
     this.inputEnabled = false;
 
     // Reset dello stato dei tasti per evitare input "sporchi"
-    if (this.keys) {
-      this.keys.left.reset();
-      this.keys.right.reset();
-      this.keys.enter.reset();
-      this.keys.esc.reset();
-      this.keys.up.reset();
-      this.keys.down.reset();
-      this.keys.space.reset();
+    if (this.keyboardManager) {
+      this.keyboardManager.forceReset();
     }
 
     // Anima l'uscita
@@ -528,20 +530,37 @@ export class WeaponSelector {
    * Update chiamato ogni frame
    */
   update() {
-    if (!this.inputEnabled || !this.keys) return;
+    if (!this.inputEnabled) return;
 
-    // Navigazione con tastiera (usa i tasti condivisi)
-    if (Phaser.Input.Keyboard.JustDown(this.keys.left)) {
-      this.selectPrevious();
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.keys.right)) {
-      this.selectNext();
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
-      this.confirmSelection();
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
-      this.cancel();
+    // Usa il keyboard manager se disponibile, altrimenti fallback a Phaser
+    if (this.keyboardManager) {
+      // Navigazione con KeyboardManager (più affidabile)
+      if (this.keyboardManager.justPressed('left')) {
+        this.selectPrevious();
+      }
+      if (this.keyboardManager.justPressed('right')) {
+        this.selectNext();
+      }
+      if (this.keyboardManager.justPressed('enter')) {
+        this.confirmSelection();
+      }
+      if (this.keyboardManager.justPressed('esc')) {
+        this.cancel();
+      }
+    } else if (this.keys) {
+      // Fallback: usa Phaser.Input.Keyboard.JustDown
+      if (Phaser.Input.Keyboard.JustDown(this.keys.left)) {
+        this.selectPrevious();
+      }
+      if (Phaser.Input.Keyboard.JustDown(this.keys.right)) {
+        this.selectNext();
+      }
+      if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
+        this.confirmSelection();
+      }
+      if (Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
+        this.cancel();
+      }
     }
   }
 
