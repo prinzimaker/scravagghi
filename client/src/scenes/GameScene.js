@@ -841,18 +841,11 @@ export class GameScene extends Phaser.Scene {
 
     const waterLevel = this.gameHeight - 40;
 
-    // Cancella l'area dell'outline
-    if (this.outlineGraphics) {
-      this.outlineGraphics.fillStyle(0x000000, 0); // Trasparente
-      for (let px = minX; px < maxX; px++) {
-        for (let py = minY; py < maxY; py++) {
-          if (!this.terrain.isSolid(px, py)) {
-            this.outlineGraphics.fillStyle(0x000000, 0);
-            this.outlineGraphics.fillRect(px - 1, py - 1, 3, 3);
-          }
-        }
-      }
-    }
+    // Colori dello sfondo per riempire i buchi
+    const skyTop = { r: 135, g: 206, b: 250 };
+    const skyBottom = { r: 70, g: 130, b: 180 };
+    const waterTop = { r: 30, g: 100, b: 180 };
+    const waterBottom = { r: 10, g: 40, b: 100 };
 
     for (let px = minX; px < maxX; px++) {
       // Trova la nuova superficie per questa colonna
@@ -860,9 +853,34 @@ export class GameScene extends Phaser.Scene {
 
       for (let py = minY; py < maxY; py++) {
         if (!this.terrain.isSolid(px, py)) {
-          // Rendi trasparente (mostra lo sfondo sotto)
-          this.terrainGraphics.fillStyle(0x000000, 0);
+          // Calcola il colore dello sfondo per questa posizione
+          let bgR, bgG, bgB;
+
+          if (py < waterLevel) {
+            // Cielo
+            const ratio = py / waterLevel;
+            bgR = Math.floor(skyTop.r + (skyBottom.r - skyTop.r) * ratio);
+            bgG = Math.floor(skyTop.g + (skyBottom.g - skyTop.g) * ratio);
+            bgB = Math.floor(skyTop.b + (skyBottom.b - skyTop.b) * ratio);
+          } else {
+            // Acqua
+            const ratio = (py - waterLevel) / (this.gameHeight - waterLevel);
+            bgR = Math.floor(waterTop.r + (waterBottom.r - waterTop.r) * ratio);
+            bgG = Math.floor(waterTop.g + (waterBottom.g - waterTop.g) * ratio);
+            bgB = Math.floor(waterTop.b + (waterBottom.b - waterTop.b) * ratio);
+          }
+
+          const bgColor = Phaser.Display.Color.GetColor(bgR, bgG, bgB);
+
+          // Disegna lo sfondo dove c'era il terreno
+          this.terrainGraphics.fillStyle(bgColor, 1);
           this.terrainGraphics.fillRect(px, py, 1, 1);
+
+          // Cancella anche l'outline in quest'area
+          if (this.outlineGraphics) {
+            this.outlineGraphics.fillStyle(bgColor, 1);
+            this.outlineGraphics.fillRect(px - 1, py - 1, 3, 3);
+          }
         } else {
           // Controlla se è un bordo e disegna outline
           if (this.outlineGraphics) {
