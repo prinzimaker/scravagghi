@@ -2,7 +2,6 @@ import { TerrainMask } from '../terrain/TerrainMask.js';
 import { Player } from '../entities/Player.js';
 import { Physics } from '../physics/Physics.js';
 import { AimController } from '../input/AimController.js';
-import { KeyboardManager } from '../input/KeyboardManager.js';
 import { DeterministicRandom } from '../utils/DeterministicRandom.js';
 import { SoundManager } from '../managers/SoundManager.js';
 import { WeaponSelector, WeaponDefinitions, WeaponType } from '../weapons/WeaponSystem.js';
@@ -74,9 +73,24 @@ export class GameScene extends Phaser.Scene {
     // Render terreno
     this.renderTerrain();
 
-    // Inizializza il keyboard manager personalizzato
-    this.keyboardManager = new KeyboardManager(this);
-    this.keys = this.keyboardManager.getKeys();
+    // Crea i tasti (sistema semplice Phaser)
+    this.keys = {
+      left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
+      right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
+      up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+      down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
+      space: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+      enter: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER),
+      esc: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC),
+      jump: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C)
+    };
+
+    // Cooldown per evitare pressioni multiple
+    this.keyCooldowns = {
+      enter: 0,
+      esc: 0,
+      jump: 0
+    };
 
     // Inizializza controller di mira
     this.aimController = new AimController(this);
@@ -88,10 +102,10 @@ export class GameScene extends Phaser.Scene {
     // Passa i tasti all'AimController
     this.aimController.setKeys(this.keys);
 
-    // Inizializza selettore armi con il nuovo keyboard manager
+    // Inizializza selettore armi
     this.weaponSelector = new WeaponSelector(this);
     this.weaponSelector.create();
-    this.weaponSelector.setKeyboardManager(this.keyboardManager);
+    this.weaponSelector.setKeys(this.keys);
     this.isSelectingWeapon = false;
 
     // Listener per colpo sparato
@@ -879,9 +893,11 @@ export class GameScene extends Phaser.Scene {
    */
   startTurn() {
     // Reset di tutti i tasti per evitare input bufferizzati
-    if (this.keyboardManager) {
-      this.keyboardManager.forceReset();
+    if (this.keys) {
+      Object.values(this.keys).forEach(key => key.reset());
     }
+    // Reset cooldowns
+    this.keyCooldowns = { enter: 0, esc: 0, jump: 0 };
     this.isJumping = false;
 
     // Usa l'element corrente per questo team
@@ -2179,9 +2195,9 @@ export class GameScene extends Phaser.Scene {
       this.aimController.shooterY = landingY - this.activePlayer.height;
     }
 
-    // Reset del tasto jump usando il keyboard manager
-    if (this.keyboardManager) {
-      this.keyboardManager.resetKey('jump');
+    // Reset del tasto jump
+    if (this.keys && this.keys.jump) {
+      this.keys.jump.reset();
     }
   }
 
@@ -2304,10 +2320,7 @@ export class GameScene extends Phaser.Scene {
       (weaponType, weaponDef) => {
         this.isSelectingWeapon = false;
 
-        // Reset di tutti i tasti dopo la chiusura del selettore
-        if (this.keyboardManager) {
-          this.keyboardManager.forceReset();
-        }
+        // Reset semplice dei tasti (nessun KeyboardManager, solo Phaser)
 
         if (weaponType && weaponDef) {
           console.log(`🔫 Selected weapon: ${weaponDef.name}`);
@@ -2374,9 +2387,9 @@ export class GameScene extends Phaser.Scene {
       this.weaponSelector.update();
     }
 
-    // Gestione apertura selettore armi con ENTER (usa KeyboardManager)
+    // Gestione apertura selettore armi con ENTER (usa sistema semplice Phaser)
     if (this.gamePhase === 'aiming' && !this.isSelectingWeapon && this.activePlayer) {
-      if (this.keyboardManager.justPressed('enter')) {
+      if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
         this.openWeaponSelector();
       }
     }
@@ -2423,8 +2436,8 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // SALTO con tasto C (50px avanti, 30px altezza) - usa KeyboardManager
-      if (this.keyboardManager.justPressed('jump') && !this.isJumping) {
+      // SALTO con tasto C (50px avanti, 30px altezza) - usa sistema semplice Phaser
+      if (Phaser.Input.Keyboard.JustDown(this.keys.jump) && !this.isJumping) {
         this.performJump();
       }
     }
