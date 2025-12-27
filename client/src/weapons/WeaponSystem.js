@@ -314,9 +314,38 @@ export class WeaponSelector {
 
   /**
    * Imposta i riferimenti ai tasti (chiamato da GameScene)
+   * Usa event listener puri invece di polling
    */
   setKeys(keys) {
     this.keys = keys;
+
+    // Event listener per LEFT - seleziona precedente
+    keys.left.on('down', () => {
+      if (this.inputEnabled) {
+        this.selectPrevious();
+      }
+    });
+
+    // Event listener per RIGHT - seleziona successivo
+    keys.right.on('down', () => {
+      if (this.inputEnabled) {
+        this.selectNext();
+      }
+    });
+
+    // Event listener per ENTER - conferma selezione
+    keys.enter.on('down', () => {
+      if (this.inputEnabled) {
+        this.confirmSelection();
+      }
+    });
+
+    // Event listener per ESC - annulla
+    keys.esc.on('down', () => {
+      if (this.inputEnabled) {
+        this.cancel();
+      }
+    });
   }
 
   /**
@@ -508,24 +537,10 @@ export class WeaponSelector {
   }
 
   /**
-   * Update chiamato ogni frame
+   * Update chiamato ogni frame (vuoto - usa event listener)
    */
   update() {
-    if (!this.inputEnabled || !this.keys) return;
-
-    // Usa Phaser.Input.Keyboard.JustDown per rilevamento tasti semplice
-    if (Phaser.Input.Keyboard.JustDown(this.keys.left)) {
-      this.selectPrevious();
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.keys.right)) {
-      this.selectNext();
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
-      this.confirmSelection();
-    }
-    if (Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
-      this.cancel();
-    }
+    // Niente da fare - tutti i controlli sono gestiti dagli event listener
   }
 
   /**
