@@ -85,14 +85,21 @@ export class GameScene extends Phaser.Scene {
       jump: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C)
     };
 
-    // Event listener per ENTER (apre selettore armi) - solo evento, niente polling
+    // IMPORTANTE: Rimuovi tutti i vecchi listener prima di aggiungerne di nuovi
+    // (necessario per evitare accumulo dopo scene.restart())
+    Object.values(this.keys).forEach(key => {
+      key.removeAllListeners('down');
+      key.removeAllListeners('up');
+    });
+
+    // Event listener per ENTER (apre selettore armi)
     this.keys.enter.on('down', () => {
       if (this.gamePhase === 'aiming' && !this.isSelectingWeapon && this.activePlayer) {
         this.openWeaponSelector();
       }
     });
 
-    // Event listener per C (salto) - solo evento, niente polling
+    // Event listener per C (salto)
     this.keys.jump.on('down', () => {
       const canMove = (this.gamePhase === 'aiming' || this.gamePhase === 'escaping') &&
                       this.activePlayer && !this.isSelectingWeapon && !this.isJumping;
@@ -117,7 +124,8 @@ export class GameScene extends Phaser.Scene {
     this.weaponSelector.setKeys(this.keys);
     this.isSelectingWeapon = false;
 
-    // Listener per colpo sparato
+    // Listener per colpo sparato (rimuovi vecchio listener prima)
+    this.events.off('shot-fired', this.handleShot, this);
     this.events.on('shot-fired', this.handleShot, this);
 
     // Inizializza pacchi armi nascosti
