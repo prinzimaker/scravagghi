@@ -131,6 +131,9 @@ export class SoundManager {
     }
 
     try {
+      // IMPORTANTE: Distruggi vecchi suoni prima di crearne di nuovi (per scene.restart())
+      this.destroy();
+
       // Organizza i suoni caricati nella libreria
       if (this.soundsConfig.byte?.low) {
         this.soundLibrary.byte.low = this.soundsConfig.byte.low
@@ -330,5 +333,40 @@ export class SoundManager {
    */
   stopAll() {
     this.scene.sound.stopAll();
+  }
+
+  /**
+   * Distrugge tutti i suoni creati (per cleanup su scene.restart())
+   */
+  destroy() {
+    // Ferma tutti i suoni
+    this.scene.sound.stopAll();
+
+    // Distruggi ogni suono nella libreria
+    const destroyCategory = (sounds) => {
+      if (Array.isArray(sounds)) {
+        sounds.forEach(sound => {
+          if (sound && sound.destroy) {
+            sound.destroy();
+          }
+        });
+      }
+    };
+
+    // Distruggi byte sounds
+    destroyCategory(this.soundLibrary.byte.low);
+    destroyCategory(this.soundLibrary.byte.med);
+    destroyCategory(this.soundLibrary.byte.hig);
+    destroyCategory(this.soundLibrary.kill);
+    destroyCategory(this.soundLibrary.frust);
+
+    // Resetta la libreria
+    this.soundLibrary = {
+      byte: { low: [], med: [], hig: [] },
+      kill: [],
+      frust: []
+    };
+
+    console.log('🔇 Sound system cleaned up');
   }
 }
