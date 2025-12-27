@@ -73,7 +73,7 @@ export class GameScene extends Phaser.Scene {
     // Render terreno
     this.renderTerrain();
 
-    // Crea i tasti (sistema semplice Phaser)
+    // Crea i tasti per movimento continuo (LEFT/RIGHT/UP/DOWN)
     this.keys = {
       left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
       right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
@@ -85,12 +85,21 @@ export class GameScene extends Phaser.Scene {
       jump: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C)
     };
 
-    // Cooldown per evitare pressioni multiple
-    this.keyCooldowns = {
-      enter: 0,
-      esc: 0,
-      jump: 0
-    };
+    // Event listener per ENTER (apre selettore armi) - solo evento, niente polling
+    this.keys.enter.on('down', () => {
+      if (this.gamePhase === 'aiming' && !this.isSelectingWeapon && this.activePlayer) {
+        this.openWeaponSelector();
+      }
+    });
+
+    // Event listener per C (salto) - solo evento, niente polling
+    this.keys.jump.on('down', () => {
+      const canMove = (this.gamePhase === 'aiming' || this.gamePhase === 'escaping') &&
+                      this.activePlayer && !this.isSelectingWeapon && !this.isJumping;
+      if (canMove) {
+        this.performJump();
+      }
+    });
 
     // Inizializza controller di mira
     this.aimController = new AimController(this);
@@ -892,12 +901,7 @@ export class GameScene extends Phaser.Scene {
    * Inizia un nuovo turno (NUOVO SISTEMA SEMPLICE)
    */
   startTurn() {
-    // Reset di tutti i tasti per evitare input bufferizzati
-    if (this.keys) {
-      Object.values(this.keys).forEach(key => key.reset());
-    }
-    // Reset cooldowns
-    this.keyCooldowns = { enter: 0, esc: 0, jump: 0 };
+    // Reset stato salto
     this.isJumping = false;
 
     // Usa l'element corrente per questo team
@@ -2194,11 +2198,6 @@ export class GameScene extends Phaser.Scene {
       this.aimController.shooterX = landingX;
       this.aimController.shooterY = landingY - this.activePlayer.height;
     }
-
-    // Reset del tasto jump
-    if (this.keys && this.keys.jump) {
-      this.keys.jump.reset();
-    }
   }
 
   /**
@@ -2387,13 +2386,6 @@ export class GameScene extends Phaser.Scene {
       this.weaponSelector.update();
     }
 
-    // Gestione apertura selettore armi con ENTER (usa sistema semplice Phaser)
-    if (this.gamePhase === 'aiming' && !this.isSelectingWeapon && this.activePlayer) {
-      if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
-        this.openWeaponSelector();
-      }
-    }
-
     // Movimento laterale del player attivo con LEFT/RIGHT
     // Permesso sia in fase 'aiming' che in fase 'escaping' (fuga da esplosione)
     const canMove = (this.gamePhase === 'aiming' || this.gamePhase === 'escaping') &&
@@ -2434,11 +2426,6 @@ export class GameScene extends Phaser.Scene {
             this.aimController.shooterY = groundY - this.activePlayer.height;
           }
         }
-      }
-
-      // SALTO con tasto C (50px avanti, 30px altezza) - usa sistema semplice Phaser
-      if (Phaser.Input.Keyboard.JustDown(this.keys.jump) && !this.isJumping) {
-        this.performJump();
       }
     }
 
