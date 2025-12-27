@@ -262,8 +262,7 @@ export class WeaponSelector {
     this.onWeaponSelected = null;
     this.selectedIndex = 0;
     this.inputEnabled = false;
-    this.keys = null; // Riferimento ai tasti condivisi (compatibilità)
-    this.keyboardManager = null; // Nuovo keyboard manager
+    this.keys = null; // Riferimento ai tasti condivisi (Phaser semplice)
   }
 
   /**
@@ -314,18 +313,10 @@ export class WeaponSelector {
   }
 
   /**
-   * Imposta i riferimenti ai tasti (chiamato da GameScene) - compatibilità
+   * Imposta i riferimenti ai tasti (chiamato da GameScene)
    */
   setKeys(keys) {
     this.keys = keys;
-  }
-
-  /**
-   * Imposta il keyboard manager (nuovo metodo preferito)
-   */
-  setKeyboardManager(keyboardManager) {
-    this.keyboardManager = keyboardManager;
-    this.keys = keyboardManager.getKeys();
   }
 
   /**
@@ -379,11 +370,6 @@ export class WeaponSelector {
     this.inventory = inventory;
     this.onWeaponSelected = callback;
 
-    // Reset dello stato dei tasti per evitare input "sporchi"
-    if (this.keyboardManager) {
-      this.keyboardManager.forceReset();
-    }
-
     // Trova l'indice dell'arma corrente
     const currentWeapon = inventory.getCurrentWeapon();
     this.selectedIndex = this.weaponSlots.findIndex(s => s.type === currentWeapon);
@@ -417,11 +403,6 @@ export class WeaponSelector {
 
     this.isVisible = false;
     this.inputEnabled = false;
-
-    // Reset dello stato dei tasti per evitare input "sporchi"
-    if (this.keyboardManager) {
-      this.keyboardManager.forceReset();
-    }
 
     // Anima l'uscita
     this.scene.tweens.add({
@@ -530,37 +511,20 @@ export class WeaponSelector {
    * Update chiamato ogni frame
    */
   update() {
-    if (!this.inputEnabled) return;
+    if (!this.inputEnabled || !this.keys) return;
 
-    // Usa il keyboard manager se disponibile, altrimenti fallback a Phaser
-    if (this.keyboardManager) {
-      // Navigazione con KeyboardManager (più affidabile)
-      if (this.keyboardManager.justPressed('left')) {
-        this.selectPrevious();
-      }
-      if (this.keyboardManager.justPressed('right')) {
-        this.selectNext();
-      }
-      if (this.keyboardManager.justPressed('enter')) {
-        this.confirmSelection();
-      }
-      if (this.keyboardManager.justPressed('esc')) {
-        this.cancel();
-      }
-    } else if (this.keys) {
-      // Fallback: usa Phaser.Input.Keyboard.JustDown
-      if (Phaser.Input.Keyboard.JustDown(this.keys.left)) {
-        this.selectPrevious();
-      }
-      if (Phaser.Input.Keyboard.JustDown(this.keys.right)) {
-        this.selectNext();
-      }
-      if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
-        this.confirmSelection();
-      }
-      if (Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
-        this.cancel();
-      }
+    // Usa Phaser.Input.Keyboard.JustDown per rilevamento tasti semplice
+    if (Phaser.Input.Keyboard.JustDown(this.keys.left)) {
+      this.selectPrevious();
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.keys.right)) {
+      this.selectNext();
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.keys.enter)) {
+      this.confirmSelection();
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
+      this.cancel();
     }
   }
 
